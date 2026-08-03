@@ -1,20 +1,42 @@
 {
-  "name": "frontend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "eslint": "^10.8.0",
-    "husky": "^9.1.7",
-    "prettier": "^3.9.6",
-    "typescript": "^7.0.2"
-  },
-  "workspaces": [
-    "client",
-    "bff"
-  ]
+    "name": "frontend",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "prepare": "cd .. && husky frontend/.husky"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "eslint": "^10.8.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^17.3.0",
+        "prettier": "^3.9.6",
+        "typescript": "^7.0.2"
+    },
+    "workspaces": [
+        "client",
+        "bff"
+    ],
+    "lint-staged": {
+        "client/!(dist)/**/*.{ts,tsx,js,jsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "bff/**/*.{ts,tsx,js,jsx}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "client/**/*.{json,css,md}": [
+            "prettier --write"
+        ],
+        "bff/**/*.{json,md}": [
+            "prettier --write"
+        ],
+        "*.{json,css,md}": [
+            "prettier --write"
+        ]
+    }
 }
