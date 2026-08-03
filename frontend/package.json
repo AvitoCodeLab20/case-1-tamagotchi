@@ -1,0 +1,20 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^10.8.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
+  },
+  "workspaces": [
+    "client",
+    "bff"
+  ]
+}
