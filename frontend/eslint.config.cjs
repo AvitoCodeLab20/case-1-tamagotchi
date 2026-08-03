@@ -2,7 +2,6 @@ const js = require('@eslint/js');
 const globals = require('globals');
 const reactPlugin = require('eslint-plugin-react');
 const reactHooksPlugin = require('eslint-plugin-react-hooks');
-const prettierPlugin = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
 const tseslint = require('typescript-eslint');
 
