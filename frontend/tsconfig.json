@@ -17,5 +17,5 @@
         "noUnusedParameters": true,
         "exactOptionalPropertyTypes": true
     },
-    "include": ["src"]
+    "include": ["client/src", "bff/src"]
 }

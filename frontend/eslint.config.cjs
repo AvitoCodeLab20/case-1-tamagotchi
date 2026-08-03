@@ -42,7 +42,6 @@ module.exports = [
     {
         files: ['**/*.{ts,tsx}'],
         plugins: {
-            prettier: prettierPlugin,
             react: reactPlugin,
             'react-hooks': reactHooksPlugin,
         },
