@@ -35,8 +35,8 @@ smoke: ## Check backend liveness and readiness endpoints
 test: ## Run backend tests with race detector
 	cd backend && go test -race ./...
 
-build: ## Compile the backend locally
-	cd backend && go build ./cmd
+build: ## Compile backend binaries locally into backend/bin
+	cd backend && go build -o bin/ ./cmd/...
 
 lint: ## Run the configured backend linters
 	cd backend && golangci-lint run --config ../.golangci.yaml

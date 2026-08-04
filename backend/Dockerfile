@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -ldflags="-s -w" \
     -o /out/backend \
-    ./cmd
+    ./cmd/backend
 
 FROM alpine:3.22
 
