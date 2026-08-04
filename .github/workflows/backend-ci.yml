@@ -1,0 +1,105 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".golangci.yaml"
+      - "docker-compose.yml"
+      - "Makefile"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".golangci.yaml"
+      - "docker-compose.yml"
+      - "Makefile"
+      - ".github/workflows/backend-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify dependencies
+        working-directory: backend
+        run: go mod verify
+
+      - name: Run tests
+        working-directory: backend
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Build
+        working-directory: backend
+        run: go build ./cmd
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11
+          working-directory: backend
+          args: --config=../.golangci.yaml
+
+  migrations:
+    name: Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate Compose
+        run: docker compose config --quiet
+
+      - name: Start PostgreSQL
+        run: docker compose up --wait postgres
+
+      - name: Apply migrations
+        run: docker compose run --rm migrate
+
+      - name: Verify idempotency
+        run: docker compose run --rm migrate
+
+      - name: Verify schema
+        run: |
+          test "$(docker compose exec -T postgres psql -U postgres -d tamagotchi -Atc "SELECT count(*) FROM schema_migrations")" = "2"
+          test "$(docker compose exec -T postgres psql -U postgres -d tamagotchi -Atc "SELECT count(*) FROM levels")" = "10"
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build backend image
+        run: docker build --tag tamagotchi-backend:ci backend
