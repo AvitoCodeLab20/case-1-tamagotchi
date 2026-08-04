@@ -13,10 +13,11 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := logging.New()
 
 	if err := run(logger); err != nil {
 		logger.Error("service stopped with error", "error", err)

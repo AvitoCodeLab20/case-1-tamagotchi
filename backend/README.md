@@ -26,6 +26,7 @@ make smoke
 | Переменная | Значение по умолчанию | Назначение |
 | --- | --- | --- |
 | `HTTP_ADDR` | `:8080` | Адрес HTTP-сервера. |
+| `LOG_LEVEL` | `info` | Уровень логирования: `debug`, `info`, `warn`, `error`. |
 | `SHUTDOWN_TIMEOUT` | `10s` | Таймаут graceful shutdown. |
 | `DATABASE_CONNECT_TIMEOUT` | `5s` | Таймаут первого подключения к PostgreSQL. |
 | `DATABASE_URL` | — | Полный DSN; имеет приоритет над `POSTGRES_*`. |
