@@ -1,0 +1,32 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    --color-base-background: #fff;
+    --color-text-primary: #020202;
+    --color-text-secondary: #fff;
+    --color-button-primary: #00aaff;
+    --color-button-secondary: #04e061;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: var(--color-base-background);
+    color: var(--color-text-primary);
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+button {
+    font-family: inherit;
+}

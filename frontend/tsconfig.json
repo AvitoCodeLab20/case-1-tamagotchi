@@ -15,7 +15,23 @@
         "noImplicitAny": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "exactOptionalPropertyTypes": true
+        "exactOptionalPropertyTypes": true,
+        "paths": {
+            "@app": ["client/src/app"],
+            "@app/*": ["client/src/app/*"],
+            "@pages": ["client/src/pages"],
+            "@pages/*": ["client/src/pages/*"],
+            "@features": ["client/src/features"],
+            "@features/*": ["client/src/features/*"],
+            "@shared": ["client/src/shared"],
+            "@shared/*": ["client/src/shared/*"],
+            "@assets": ["client/src/assets"],
+            "@assets/*": ["client/src/assets/*"],
+            "@entities": ["client/src/entities"],
+            "@entities/*": ["client/src/entities/*"],
+            "@widgets": ["client/src/widgets"],
+            "@widgets/*": ["client/src/widgets/*"]
+        }
     },
-    "include": ["src"]
+    "include": ["client/src", "bff/src"]
 }
