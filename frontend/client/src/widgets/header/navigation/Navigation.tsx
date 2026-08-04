@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { Button } from '@mui/material';
 
 export function Navigation() {
-    const isRegistered = false;
+    const isRegistered = true;
 
     return (
         <nav className={styles.nav}>
@@ -12,18 +12,14 @@ export function Navigation() {
                     <Button
                         component={Link}
                         to="/auth?mode=login"
-                        sx={{
-                            backgroundColor: 'var(--color-button-primary)',
-                            color: 'var(--color-text-primary)',
-                        }}
+                        variant="contained"
+                        color="primary"
                     >
                         Войти
                     </Button>
                     <Button
-                        sx={{
-                            backgroundColor: 'var(--color-button-secondary)',
-                            color: 'var(--color-text-primary)',
-                        }}
+                        variant="contained"
+                        color="secondary"
                         component={Link}
                         to={'auth?mode=register'}
                     >
@@ -33,12 +29,12 @@ export function Navigation() {
             ) : (
                 <>
                     <NavLink to="/leaderboard">
-                        <Button sx={{ backgroundColor: 'var(--color-button-secondary)' }}>
+                        <Button variant="contained" color="primary">
                             Лидерборд
                         </Button>
                     </NavLink>
                     <NavLink to="/">
-                        <Button sx={{ backgroundColor: 'var(--color-button-primary)' }}>
+                        <Button variant="contained" color="secondary">
                             Питомец
                         </Button>
                     </NavLink>
