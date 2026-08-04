@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Compiled binaries output directory
+bin/
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -26,6 +29,10 @@ go.work.sum
 
 # env file
 .env
+
+# Local, untracked notes and scratch (never committed)
+*.local
+*.local/
 
 # Editor/IDE
 .idea/

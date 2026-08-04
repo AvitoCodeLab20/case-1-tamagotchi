@@ -1,52 +1,85 @@
-services:
-  backend:
-    build: ./backend
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - POSTGRES_HOST=postgres
-      - REPORT_SERVICE_URL=http://report-service:8000
-    ports:
-      - "8080:8080"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+name: avito-tamagotchi
 
+services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-tamagotchi}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c '\\q' -q"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 5s
 
   migrate:
-    image: postgres:17-alpine
-    env_file: .env
+    build:
+      context: ./backend
+    restart: "no"
     environment:
-      - POSTGRES_HOST=postgres
-    volumes:
-      - ./backend/migration:/migrations:ro
-    entrypoint: ["sh", "/migrations/apply.sh"]
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-tamagotchi}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_SSLMODE: disable
+    entrypoint: ["/app/migrate"]
+    command: ["up"]
     depends_on:
       postgres:
         condition: service_healthy
 
-  frontend:
-    build: ./frontend
+  backend:
+    build:
+      context: ./backend
     restart: unless-stopped
-    expose:
-      - "80"
+    environment:
+      HTTP_ADDR: :8080
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
+      DATABASE_CONNECT_TIMEOUT: ${DATABASE_CONNECT_TIMEOUT:-5s}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-tamagotchi}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_SSLMODE: disable
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
-      - incident-service
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    profiles: ["frontend"]
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   postgres_data:

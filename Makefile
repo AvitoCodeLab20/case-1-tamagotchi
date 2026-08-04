@@ -1,38 +1,51 @@
-.PHONY: up down restart rebuild logs ps test build lint clean
+.PHONY: up down restart rebuild logs ps test build lint fmt-check migrate migration-status smoke clean help
 
 # --- Docker ---
 
-up: ## Start everything (build if needed)
+up: ## Build and start PostgreSQL, migrations, and backend
 	docker compose up --build -d
 
-down: ## Stop everything
+down: ## Stop all services
 	docker compose down
 
-restart: down up ## Restart everything
+restart: down up ## Restart all services
 
-rebuild: ## Full rebuild: stop, wipe db volume, build, start
+rebuild: ## Recreate services and the local database
 	docker compose down -v
 	docker compose up --build -d
 
-logs: ## Tail logs of all services
+logs: ## Follow service logs
 	docker compose logs -f
 
 ps: ## Show container status
 	docker compose ps
 
-# --- Go (backend) ---
+migrate: ## Apply pending database migrations
+	docker compose run --rm migrate
 
-test: ## Run all Go tests
-	cd backend && go test ./...
+migration-status: ## Show goose migration status
+	docker compose run --rm migrate status
 
-build: ## Compile the Go service locally
-	cd backend && go build ./...
+smoke: ## Check backend liveness and readiness endpoints
+	curl --fail --silent http://localhost:$${BACKEND_PORT:-8080}/healthz
+	curl --fail --silent http://localhost:$${BACKEND_PORT:-8080}/readyz
 
-lint: ## Run go vet
-	cd backend && go vet ./...
+# --- Go backend ---
 
-clean: ## Stop containers and remove db volume
+test: ## Run backend tests with race detector
+	cd backend && go test -race ./...
+
+build: ## Compile backend binaries locally into backend/bin
+	cd backend && go build -o bin/ ./cmd/...
+
+lint: ## Run the configured backend linters
+	cd backend && golangci-lint run --config ../.golangci.yaml
+
+fmt-check: ## Check Go formatting
+	test -z "$$(gofmt -l backend)"
+
+clean: ## Stop containers and remove the local database
 	docker compose down -v
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+help: ## Show available commands
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
