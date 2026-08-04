@@ -4,7 +4,8 @@
     "description": "Avito Tamagochi frontend",
     "main": "index.js",
     "scripts": {
-        "prepare": "cd .. && husky frontend/.husky"
+        "prepare": "cd .. && husky frontend/.husky",
+        "lint": "eslint --fix . && prettier --write ."
     },
     "keywords": [],
     "author": "",
