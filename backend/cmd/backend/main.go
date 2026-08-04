@@ -35,7 +35,7 @@ func run(logger *logging.Logger) error {
 	rootContext, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	databasePool, err := database.Open(rootContext, cfg.DatabaseURL, cfg.DatabaseConnectTimeout)
+	databasePool, err := database.Open(rootContext, cfg.Database.URL, cfg.Database.ConnectTimeout)
 	if err != nil {
 		return fmt.Errorf("connect to database: %w", err)
 	}
