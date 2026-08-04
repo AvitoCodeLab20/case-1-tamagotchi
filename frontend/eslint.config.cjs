@@ -42,7 +42,6 @@ module.exports = [
     {
         files: ['**/*.{ts,tsx}'],
         plugins: {
-            prettier: prettierPlugin,
             react: reactPlugin,
             'react-hooks': reactHooksPlugin,
         },
@@ -61,7 +60,6 @@ module.exports = [
         rules: {
             ...reactPlugin.configs.recommended.rules,
             ...reactHooksPlugin.configs.recommended.rules,
-            'prettier/prettier': 'error',
             'react/react-in-jsx-scope': 'off',
             '@typescript-eslint/no-unused-vars': [
                 'error',
