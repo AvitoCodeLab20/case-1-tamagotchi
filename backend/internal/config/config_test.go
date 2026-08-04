@@ -26,8 +26,11 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadDatabaseURLOverride(t *testing.T) {
+	// Fixture DSN used only to check that DATABASE_URL takes precedence; not a real secret.
+	const overrideDatabaseURL = "postgres://app:secret@database:5432/app?sslmode=require" //nolint:gosec // test fixture, not a real credential
+
 	clearConfigEnvironment(t)
-	t.Setenv("DATABASE_URL", "postgres://app:secret@database:5432/app?sslmode=require")
+	t.Setenv("DATABASE_URL", overrideDatabaseURL)
 	t.Setenv("DATABASE_CONNECT_TIMEOUT", "3s")
 
 	cfg, err := Load()
@@ -35,7 +38,7 @@ func TestLoadDatabaseURLOverride(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.DatabaseURL != "postgres://app:secret@database:5432/app?sslmode=require" {
+	if cfg.DatabaseURL != overrideDatabaseURL {
 		t.Errorf("DatabaseURL = %q", cfg.DatabaseURL)
 	}
 	if cfg.DatabaseConnectTimeout != 3*time.Second {

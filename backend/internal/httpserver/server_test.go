@@ -21,7 +21,7 @@ func (stub readinessStub) Ping(context.Context) error {
 
 func TestHealth(t *testing.T) {
 	server := New(":0", readinessStub{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	response := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(response, request)
@@ -36,7 +36,7 @@ func TestHealth(t *testing.T) {
 
 func TestReadinessUnavailable(t *testing.T) {
 	server := New(":0", readinessStub{err: errors.New("database unavailable")}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	request := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	response := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(response, request)
