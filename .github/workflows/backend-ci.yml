@@ -87,7 +87,7 @@ jobs:
 
       - name: Verify schema
         run: |
-          test "$(docker compose exec -T postgres psql -U postgres -d tamagotchi -Atc "SELECT count(*) FROM schema_migrations")" = "2"
+          test "$(docker compose exec -T postgres psql -U postgres -d tamagotchi -Atc "SELECT count(*) FROM goose_db_version WHERE version_id > 0")" = "2"
           test "$(docker compose exec -T postgres psql -U postgres -d tamagotchi -Atc "SELECT count(*) FROM levels")" = "10"
 
       - name: Stop services

@@ -24,7 +24,8 @@ services:
       start_period: 5s
 
   migrate:
-    image: postgres:17-alpine
+    build:
+      context: ./backend
     restart: "no"
     environment:
       POSTGRES_HOST: postgres
@@ -32,9 +33,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-tamagotchi}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    volumes:
-      - ./backend/migration:/migrations:ro
-    entrypoint: ["/bin/sh", "/migrations/apply.sh"]
+      POSTGRES_SSLMODE: disable
+    entrypoint: ["/app/migrate"]
+    command: ["up"]
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,3 +1,4 @@
+-- +goose Up
 INSERT INTO levels (level, required_total_experience, title)
 VALUES
     (1, 0, 'Новичок'),
@@ -29,3 +30,9 @@ VALUES
     ('save_listing', 'Добавить в избранное', 'Связывает прогресс питомца с интересом к объявлению', 'avito_product', 20, 2, 0),
     ('publish_listing', 'Разместить объявление', 'Награждает за ключевое действие доски объявлений', 'avito_product', 60, 1, 0)
 ON CONFLICT (code) DO NOTHING;
+
+-- +goose Down
+DELETE FROM activity_types
+WHERE code IN ('feed', 'play', 'rest', 'browse_listings', 'save_listing', 'publish_listing');
+
+DELETE FROM levels WHERE level BETWEEN 1 AND 10;

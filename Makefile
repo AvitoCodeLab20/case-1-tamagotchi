@@ -23,8 +23,8 @@ ps: ## Show container status
 migrate: ## Apply pending database migrations
 	docker compose run --rm migrate
 
-migration-status: ## Show applied database migrations
-	docker compose exec postgres psql -U "$${POSTGRES_USER:-postgres}" -d "$${POSTGRES_DB:-tamagotchi}" -c "TABLE schema_migrations;"
+migration-status: ## Show goose migration status
+	docker compose run --rm migrate status
 
 smoke: ## Check backend liveness and readiness endpoints
 	curl --fail --silent http://localhost:$${BACKEND_PORT:-8080}/healthz

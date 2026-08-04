@@ -1,5 +1,7 @@
+-- +goose Up
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -7,6 +9,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TABLE levels (
     level INTEGER PRIMARY KEY CHECK (level > 0),
@@ -182,3 +185,19 @@ FROM pets AS p
 JOIN users AS u ON u.id = p.user_id
 LEFT JOIN user_streaks AS s ON s.user_id = p.user_id
 WHERE u.status = 'active';
+
+-- +goose Down
+DROP VIEW IF EXISTS leaderboard;
+DROP TABLE IF EXISTS refresh_sessions;
+DROP TABLE IF EXISTS reward_redemptions;
+DROP TABLE IF EXISTS user_rewards;
+DROP TABLE IF EXISTS reward_definitions;
+DROP TABLE IF EXISTS daily_summaries;
+DROP TABLE IF EXISTS user_streaks;
+DROP TABLE IF EXISTS pet_actions;
+DROP TABLE IF EXISTS activity_types;
+DROP TABLE IF EXISTS pets;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS levels;
+DROP FUNCTION IF EXISTS set_updated_at();
+DROP EXTENSION IF EXISTS pgcrypto;
