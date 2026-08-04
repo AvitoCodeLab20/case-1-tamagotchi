@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <h1>Что-то пошло не так</h1>
                     <p>Попробуйте перезагрузить страницу.</p>
                     <Button
-                        sx={{ backgroundColor: 'var(--colorButtonPrimary)' }}
+                        sx={{ backgroundColor: 'var(--color-button-primary)' }}
                         onClick={() => window.location.reload()}
                     >
                         Перезагрузить
