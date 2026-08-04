@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+// Logger is the application logger type. It aliases slog.Logger so callers can
+// depend on this package instead of importing log/slog directly.
+type Logger = slog.Logger
+
 // New builds the application logger. It writes structured JSON to stdout and
 // honours the LOG_LEVEL environment variable (debug, info, warn, error);
 // the default level is info.

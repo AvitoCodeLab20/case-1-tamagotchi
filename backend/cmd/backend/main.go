@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,7 +26,7 @@ func main() {
 	logger.Info("service stopped")
 }
 
-func run(logger *slog.Logger) error {
+func run(logger *logging.Logger) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
