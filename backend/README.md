@@ -80,6 +80,8 @@ make logs              # посмотреть логи контейнеров
 ```
 
 Описание модели данных и правил изменения схемы находится в [docs/database.md](docs/database.md), устройство аутентификации — в [docs/authentication.md](docs/authentication.md).
+Продуктовая логика и первичный API наград и недельного лидерборда
+описаны в [docs/rewards-and-leaderboard.md](docs/rewards-and-leaderboard.md).
 
 ## CI/CD
 
