@@ -1,6 +1,6 @@
 # Backend
 
-Базовый Go-сервис Avito Tamagotchi. На текущем этапе он поднимает HTTP-сервер, подключается к PostgreSQL и предоставляет probes для оркестратора. Доменное API добавляется следующими feature-ветками.
+Go-сервис Avito Tamagotchi. На текущем этапе он поднимает HTTP-сервер, подключается к PostgreSQL, предоставляет probes для оркестратора и реализует аутентификацию по email и паролю. Игровое API добавляется следующими feature-ветками.
 
 ## Локальный запуск
 
@@ -19,6 +19,8 @@ make smoke
 - `GET /healthz` — процесс запущен;
 - `GET /readyz` — сервис готов и PostgreSQL доступна.
 
+Без `JWT_SECRET` backend не стартует, поэтому `cp .env.example .env` перед `make up` обязателен.
+
 Профиль frontend выключен, пока frontend-команда не добавит Dockerfile. После этого весь проект можно будет поднять командой `docker compose --profile frontend up --build -d`.
 
 ## Конфигурация
@@ -36,13 +38,40 @@ make smoke
 | `POSTGRES_USER` | `postgres` | Пользователь PostgreSQL. |
 | `POSTGRES_PASSWORD` | `postgres` | Пароль только для локальной разработки. |
 | `POSTGRES_SSLMODE` | `disable` | Режим TLS подключения. В production нужен `require` или строже. |
+| `JWT_SECRET` | — | Ключ подписи access-токенов, минимум 32 символа. Обязателен, без него сервис не стартует. |
+| `JWT_ISSUER` | `avito-tamagotchi` | Значение claim `iss`. |
+| `ACCESS_TOKEN_TTL` | `15m` | Время жизни access-токена. |
+| `REFRESH_TOKEN_TTL` | `720h` | Время жизни refresh-токена. |
+| `BCRYPT_COST` | `12` | Стоимость bcrypt, допустимо 10–15. |
 
 Production-секреты не должны храниться в `.env` репозитория. Они передаются платформой деплоя через secret storage.
+
+## API
+
+| Метод | Путь | Авторизация | Назначение |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | — | Создать аккаунт и сразу войти. |
+| `POST` | `/api/v1/auth/login` | — | Войти по email и паролю. |
+| `POST` | `/api/v1/auth/refresh` | — | Обменять refresh-токен на новую пару. |
+| `POST` | `/api/v1/auth/logout` | — | Отозвать предъявленный refresh-токен. |
+| `POST` | `/api/v1/auth/logout-all` | Bearer | Отозвать все сессии пользователя. |
+| `GET` | `/api/v1/auth/me` | Bearer | Профиль текущего пользователя. |
+
+Быстрая проверка на поднятом стенде:
+
+```bash
+curl -sS -X POST http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"player@avito.ru","display_name":"Игрок","password":"correct-horse-battery"}'
+```
+
+Схема токенов, коды ошибок и правила валидации описаны в [docs/authentication.md](docs/authentication.md).
 
 ## Команды
 
 ```bash
 make test              # unit-тесты и race detector
+make test-integration  # плюс тесты репозиториев на поднятой БД
 make build             # локальная сборка backend
 make lint              # golangci-lint
 make migrate           # применить новые миграции
@@ -50,7 +79,7 @@ make migration-status  # показать применённые версии
 make logs              # посмотреть логи контейнеров
 ```
 
-Описание модели данных и правил изменения схемы находится в [docs/database.md](docs/database.md).
+Описание модели данных и правил изменения схемы находится в [docs/database.md](docs/database.md), устройство аутентификации — в [docs/authentication.md](docs/authentication.md).
 
 ## CI/CD
 
