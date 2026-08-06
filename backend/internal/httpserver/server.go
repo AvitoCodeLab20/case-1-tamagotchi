@@ -17,11 +17,10 @@ type readinessChecker interface {
 // Options carries everything the HTTP server needs. It is a struct rather than
 // a parameter list so that adding a dependency does not touch every call site.
 type Options struct {
-	Address     string
-	Database    readinessChecker
-	Auth        authService
-	Leaderboard leaderboardService
-	Logger      *slog.Logger
+	Address  string
+	Database readinessChecker
+	Auth     authService
+	Logger   *slog.Logger
 }
 
 // New builds the HTTP server with the routes mounted.
@@ -31,8 +30,6 @@ func New(options Options) (*http.Server, error) {
 		return nil, errors.New("httpserver: database is required")
 	case options.Auth == nil:
 		return nil, errors.New("httpserver: auth service is required")
-	case options.Leaderboard == nil:
-		return nil, errors.New("httpserver: leaderboard service is required")
 	case options.Logger == nil:
 		return nil, errors.New("httpserver: logger is required")
 	}
@@ -64,10 +61,6 @@ func newRouter(options Options) http.Handler {
 	mux.Handle("POST /api/v1/auth/logout", logoutHandler(options.Auth, options.Logger))
 	mux.Handle("POST /api/v1/auth/logout-all", chain(logoutAllHandler(options.Auth, options.Logger), authenticated))
 	mux.Handle("GET /api/v1/auth/me", chain(currentUserHandler(options.Auth, options.Logger), authenticated))
-	mux.Handle("GET /api/v1/leaderboard/current", chain(
-		currentLeaderboardHandler(options.Auth, options.Leaderboard, options.Logger),
-		authenticated,
-	))
 
 	return mux
 }
