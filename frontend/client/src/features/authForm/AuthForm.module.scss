@@ -1,0 +1,14 @@
+.authForm {
+  display: flex;
+  width: min(100%, 400px);
+  padding: 32px;
+  flex-direction: column;
+  gap: 20px;
+  border-radius: 16px !important;
+}
+
+@media (max-width: 480px) {
+  .authForm {
+    padding: 24px;
+  }
+}
