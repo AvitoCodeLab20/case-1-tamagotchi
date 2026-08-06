@@ -8,14 +8,14 @@ on:
       - ".golangci.yaml"
       - "docker-compose.yml"
       - "Makefile"
-      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-ci.yaml"
   pull_request:
     paths:
       - "backend/**"
       - ".golangci.yaml"
       - "docker-compose.yml"
       - "Makefile"
-      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-ci.yaml"
 
 permissions:
   contents: read
