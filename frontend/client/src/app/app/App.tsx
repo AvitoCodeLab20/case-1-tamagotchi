@@ -1,9 +1,12 @@
 import { Outlet } from 'react-router-dom';
 import { QueryClientProvider } from '@app/providers/queryClient';
+import { SessionBootstrap } from '@app/providers/session';
 export function App() {
     return (
-        <QueryClientProvider>
-            <Outlet />
-        </QueryClientProvider>
+        <SessionBootstrap>
+            <QueryClientProvider>
+                <Outlet />
+            </QueryClientProvider>
+        </SessionBootstrap>
     );
 }

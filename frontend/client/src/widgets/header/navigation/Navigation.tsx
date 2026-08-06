@@ -2,9 +2,10 @@ import styles from './Navigation.module.scss';
 import { Link, NavLink } from 'react-router-dom';
 import { ERoutes } from '@entities/paths';
 import { Button } from '@mui/material';
+import { logout, useSessionStore } from '@entities/session';
 
 export function Navigation() {
-    const isRegistered = true;
+    const isRegistered = useSessionStore((state) => state.status === 'authenticated');
 
     return (
         <nav className={styles.nav}>
@@ -39,6 +40,9 @@ export function Navigation() {
                             Питомец
                         </Button>
                     </NavLink>
+                    <Button variant="outlined" onClick={() => void logout()}>
+                        Выйти
+                    </Button>
                 </>
             )}
         </nav>
