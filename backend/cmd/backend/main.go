@@ -15,6 +15,8 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
+	leaderboardmemory "github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard/memory"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
@@ -50,11 +52,17 @@ func run(logger *logging.Logger) error {
 		return fmt.Errorf("build auth service: %w", err)
 	}
 
+	leaderboardService, err := leaderboard.NewService(leaderboardmemory.NewRepository())
+	if err != nil {
+		return fmt.Errorf("build leaderboard service: %w", err)
+	}
+
 	server, err := httpserver.New(httpserver.Options{
-		Address:  cfg.HTTPAddress,
-		Database: databasePool,
-		Auth:     authService,
-		Logger:   logger,
+		Address:     cfg.HTTPAddress,
+		Database:    databasePool,
+		Auth:        authService,
+		Leaderboard: leaderboardService,
+		Logger:      logger,
 	})
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)
