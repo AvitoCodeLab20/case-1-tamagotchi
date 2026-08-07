@@ -36,11 +36,10 @@ func withLeaderboard(service leaderboardService) suiteOption {
 }
 
 func TestCurrentLeaderboardEndpoint(t *testing.T) {
-	currentUserID := uuid.Nil
 	stub := &leaderboardStub{}
 	s := newSuite(t, withLeaderboard(stub))
 	registered := s.registerUser(t)
-	currentUserID = uuid.MustParse(registered.User.ID)
+	currentUserID := uuid.MustParse(registered.User.ID)
 
 	periodStart := time.Date(2026, time.August, 3, 0, 0, 0, 0, time.FixedZone("Europe/Moscow", 3*60*60))
 	stub.board = leaderboard.Board{

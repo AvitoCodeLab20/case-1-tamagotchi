@@ -531,7 +531,9 @@ func scanReward(scanner rowScanner) (rewards.Reward, error) {
 func scanRewardWithPrefix(scanner rowScanner, prefix ...any) (rewards.Reward, error) {
 	reward := rewards.Reward{}
 	payload := []byte(nil)
-	destinations := append(prefix,
+	destinations := make([]any, 0, len(prefix)+10)
+	destinations = append(destinations, prefix...)
+	destinations = append(destinations,
 		&reward.ID,
 		&reward.Code,
 		&reward.Title,
