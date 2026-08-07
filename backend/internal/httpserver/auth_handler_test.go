@@ -40,6 +40,7 @@ type suiteOption func(*suiteConfig)
 type suiteConfig struct {
 	databaseErr error
 	leaderboard leaderboardService
+	rewards     rewardService
 }
 
 func withDatabaseError(err error) suiteOption {
@@ -49,7 +50,7 @@ func withDatabaseError(err error) suiteOption {
 func newSuite(t *testing.T, options ...suiteOption) suite {
 	t.Helper()
 
-	cfg := suiteConfig{leaderboard: &leaderboardStub{}}
+	cfg := suiteConfig{leaderboard: &leaderboardStub{}, rewards: &rewardStub{}}
 	for _, option := range options {
 		option(&cfg)
 	}
@@ -79,6 +80,7 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 		Database:    readinessStub{err: cfg.databaseErr},
 		Auth:        service,
 		Leaderboard: cfg.leaderboard,
+		Rewards:     cfg.rewards,
 		Logger:      logger,
 	})
 	if err != nil {
