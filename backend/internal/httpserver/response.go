@@ -26,6 +26,7 @@ const (
 	codeUnauthorized       = "unauthorized"
 	codeRateLimited        = "rate_limited"
 	codeInternalError      = "internal_error"
+	codePetNotFound        = "pet_not_found"
 )
 
 // errorResponse is the single error shape of the API.

@@ -20,6 +20,7 @@ type Options struct {
 	Address  string
 	Database readinessChecker
 	Auth     authService
+	Pet      petService
 	Logger   *slog.Logger
 }
 
@@ -30,6 +31,8 @@ func New(options Options) (*http.Server, error) {
 		return nil, errors.New("httpserver: database is required")
 	case options.Auth == nil:
 		return nil, errors.New("httpserver: auth service is required")
+	case options.Pet == nil:
+		return nil, errors.New("httpserver: pet service is required")
 	case options.Logger == nil:
 		return nil, errors.New("httpserver: logger is required")
 	}
@@ -61,6 +64,7 @@ func newRouter(options Options) http.Handler {
 	mux.Handle("POST /api/v1/auth/logout", logoutHandler(options.Auth, options.Logger))
 	mux.Handle("POST /api/v1/auth/logout-all", chain(logoutAllHandler(options.Auth, options.Logger), authenticated))
 	mux.Handle("GET /api/v1/auth/me", chain(currentUserHandler(options.Auth, options.Logger), authenticated))
+	mux.Handle("GET /api/v1/pet", chain(petHandler(options.Pet, options.Logger), authenticated))
 
 	return mux
 }

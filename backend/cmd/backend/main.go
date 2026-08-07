@@ -16,6 +16,7 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
 
@@ -50,10 +51,14 @@ func run(logger *logging.Logger) error {
 		return fmt.Errorf("build auth service: %w", err)
 	}
 
+	petRepository := storage.NewPetRepository(databasePool)
+	petService := pet.NewService(petRepository)
+
 	server, err := httpserver.New(httpserver.Options{
 		Address:  cfg.HTTPAddress,
 		Database: databasePool,
 		Auth:     authService,
+		Pet:      petService,
 		Logger:   logger,
 	})
 	if err != nil {

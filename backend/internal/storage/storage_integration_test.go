@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
 
@@ -70,6 +71,52 @@ func createUser(t *testing.T, pool *pgxpool.Pool) auth.User {
 	})
 
 	return user
+}
+
+func createPet(t *testing.T, pool *pgxpool.Pool, user auth.User) pet.Pet {
+	t.Helper()
+
+	var created pet.Pet
+
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO pets (user_id, name)
+		VALUES ($1, $2)
+		RETURNING
+			id,
+			user_id,
+			name,
+			species,
+			level,
+			experience,
+			health,
+			hunger,
+			happiness,
+			energy,
+			state_version,
+			last_interaction_at,
+			created_at,
+			updated_at
+	`, user.ID, "Бобик").Scan(
+		&created.ID,
+		&created.UserID,
+		&created.Name,
+		&created.Species,
+		&created.Level,
+		&created.Experience,
+		&created.Health,
+		&created.Hunger,
+		&created.Happiness,
+		&created.Energy,
+		&created.StateVersion,
+		&created.LastInteractionAt,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		t.Fatalf("create pet: %v", err)
+	}
+
+	return created
 }
 
 // TestUserRepositoryCreateAndRead also proves that a google/uuid value survives
@@ -292,5 +339,48 @@ func TestRefreshSessionRepositoryMissingRow(t *testing.T) {
 	_, err := sessions.ByTokenHash(context.Background(), []byte("no-session-has-this-token-digest"))
 	if !errors.Is(err, auth.ErrSessionNotFound) {
 		t.Errorf("ByTokenHash() error = %v, want ErrSessionNotFound", err)
+	}
+}
+
+func TestPetRepositoryByUserID(t *testing.T) {
+	pool := newPool(t)
+	repository := storage.NewPetRepository(pool)
+
+	user := createUser(t, pool)
+	created := createPet(t, pool, user)
+
+	got, err := repository.ByUserID(context.Background(), user.ID)
+	if err != nil {
+		t.Fatalf("ByUserID() error = %v", err)
+	}
+
+	if got.ID != created.ID {
+		t.Errorf("ID = %s, want %s", got.ID, created.ID)
+	}
+
+	if got.UserID != user.ID {
+		t.Errorf("UserID = %s, want %s", got.UserID, user.ID)
+	}
+
+	if got.Name != created.Name {
+		t.Errorf("Name = %q, want %q", got.Name, created.Name)
+	}
+
+	if got.Level != 1 {
+		t.Errorf("Level = %d, want 1", got.Level)
+	}
+
+	if got.Experience != 0 {
+		t.Errorf("Experience = %d, want 0", got.Experience)
+	}
+}
+
+func TestPetRepositoryMissingRow(t *testing.T) {
+	pool := newPool(t)
+	repository := storage.NewPetRepository(pool)
+
+	_, err := repository.ByUserID(context.Background(), uuid.New())
+	if !errors.Is(err, pet.ErrNotFound) {
+		t.Errorf("ByUserID() error = %v, want ErrNotFound", err)
 	}
 }
