@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
 
@@ -294,3 +296,255 @@ func TestRefreshSessionRepositoryMissingRow(t *testing.T) {
 		t.Errorf("ByTokenHash() error = %v, want ErrSessionNotFound", err)
 	}
 }
+
+func TestLeaderboardRepositoryAggregatesWeeklyExperience(t *testing.T) {
+	pool := newPool(t)
+	repository := storage.NewLeaderboardRepository(pool)
+	activeUser := createUser(t, pool)
+	blockedUser := createUser(t, pool)
+	if _, err := pool.Exec(context.Background(), `UPDATE users SET status = 'blocked' WHERE id = $1`, blockedUser.ID); err != nil {
+		t.Fatalf("block user: %v", err)
+	}
+	startsAt := time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC)
+	endsAt := startsAt.AddDate(0, 0, 7)
+	activePetID := createPet(t, pool, activeUser.ID)
+	blockedPetID := createPet(t, pool, blockedUser.ID)
+	insertPetAction(t, pool, activeUser.ID, activePetID, 20, startsAt.Add(time.Hour))
+	insertPetAction(t, pool, activeUser.ID, activePetID, 30, startsAt.Add(2*time.Hour))
+	insertPetAction(t, pool, activeUser.ID, activePetID, 100, startsAt.Add(-time.Second))
+	insertPetAction(t, pool, blockedUser.ID, blockedPetID, 500, startsAt.Add(time.Hour))
+	participants, err := repository.WeeklyParticipants(context.Background(), startsAt, endsAt)
+	if err != nil {
+		t.Fatalf("WeeklyParticipants() error = %v", err)
+	}
+	if len(participants) != 1 || participants[0].UserID != activeUser.ID || participants[0].WeeklyExperience != 50 {
+		t.Fatalf("participants = %+v, want active user with 50 XP", participants)
+	}
+}
+
+func TestLeaderboardRepositoryFinalizesWeekIdempotently(t *testing.T) {
+	pool := newPool(t)
+	repository := storage.NewLeaderboardRepository(pool)
+	startsAt := time.Now().UTC().AddDate(0, 0, -7).Truncate(time.Second)
+	period := leaderboard.Period{
+		StartsAt: startsAt,
+		EndsAt:   startsAt.AddDate(0, 0, 7),
+		Timezone: "Europe/Moscow",
+	}
+	users := []auth.User{createUser(t, pool), createUser(t, pool), createUser(t, pool)}
+	entries := []leaderboard.Entry{
+		{Participant: leaderboard.Participant{
+			UserID: users[0].ID, DisplayName: users[0].DisplayName, WeeklyExperience: 300, ReachedAt: startsAt,
+		}, Rank: 1, PrizeTier: 5},
+		{Participant: leaderboard.Participant{
+			UserID: users[1].ID, DisplayName: users[1].DisplayName, WeeklyExperience: 200, ReachedAt: startsAt,
+		}, Rank: 2, PrizeTier: 10},
+		{Participant: leaderboard.Participant{
+			UserID: users[2].ID, DisplayName: users[2].DisplayName, WeeklyExperience: 100, ReachedAt: startsAt,
+		}, Rank: 3, PrizeTier: 15},
+	}
+	finalizedAt := period.EndsAt.Add(time.Hour)
+	selectBefore := period.EndsAt.AddDate(0, 0, 7)
+	if err := repository.SaveFinalizedWeek(
+		context.Background(), period, entries, finalizedAt, selectBefore,
+	); err != nil {
+		t.Fatalf("SaveFinalizedWeek() error = %v", err)
+	}
+	if err := repository.SaveFinalizedWeek(
+		context.Background(), period, entries, finalizedAt, selectBefore,
+	); err != nil {
+		t.Fatalf("repeated SaveFinalizedWeek() error = %v", err)
+	}
+	resultCount := 0
+	awardCount := 0
+	if err := pool.QueryRow(context.Background(), `
+		SELECT
+			(SELECT COUNT(*) FROM leaderboard_results WHERE week_id = week.id),
+			(SELECT COUNT(*) FROM leaderboard_awards WHERE week_id = week.id)
+		FROM leaderboard_weeks AS week
+		WHERE week.starts_at = $1`, period.StartsAt).Scan(&resultCount, &awardCount); err != nil {
+		t.Fatalf("query finalized week: %v", err)
+	}
+	if resultCount != 3 || awardCount != 3 {
+		t.Fatalf("result count = %d, award count = %d", resultCount, awardCount)
+	}
+}
+
+func TestRewardRepositoryIssueListAndRedeem(t *testing.T) {
+	pool := newPool(t)
+	service, err := rewards.NewService(storage.NewRewardRepository(pool))
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	user := createUser(t, pool)
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	issued, err := service.IssueLevel(context.Background(), user.ID, 5, 1, now)
+	if err != nil {
+		t.Fatalf("IssueLevel() error = %v", err)
+	}
+	if len(issued) != 1 {
+		t.Fatalf("len(issued) = %d, want 1", len(issued))
+	}
+	repeated, err := service.IssueLevel(context.Background(), user.ID, 5, 1, now)
+	if err != nil {
+		t.Fatalf("repeated IssueLevel() error = %v", err)
+	}
+	if len(repeated) != 1 || repeated[0].ID != issued[0].ID {
+		t.Fatalf("repeated issue = %+v, want reward %s", repeated, issued[0].ID)
+	}
+	inventory, err := service.ListInventory(context.Background(), user.ID, rewards.StatusIssued)
+	if err != nil {
+		t.Fatalf("ListInventory() error = %v", err)
+	}
+	if len(inventory.Rewards) != 1 || len(inventory.LeaderboardAwards) != 0 {
+		t.Fatalf("inventory = %+v", inventory)
+	}
+	key := uuid.New()
+	redeemed, err := service.Redeem(context.Background(), user.ID, issued[0].ID, key, "", "")
+	if err != nil {
+		t.Fatalf("Redeem() error = %v", err)
+	}
+	if redeemed.Status != rewards.StatusRedeemed || redeemed.RedeemedAt == nil {
+		t.Fatalf("redeemed = %+v", redeemed)
+	}
+	repeatedRedemption, err := service.Redeem(context.Background(), user.ID, issued[0].ID, key, "", "")
+	if err != nil {
+		t.Fatalf("repeated Redeem() error = %v", err)
+	}
+	if repeatedRedemption.ID != redeemed.ID {
+		t.Fatalf("repeated reward id = %s, want %s", repeatedRedemption.ID, redeemed.ID)
+	}
+	streakRewards, err := service.IssueStreak(context.Background(), user.ID, 7, now, now)
+	if err != nil {
+		t.Fatalf("IssueStreak() error = %v", err)
+	}
+	_, err = service.Redeem(context.Background(), user.ID, streakRewards[0].ID, key, "", "")
+	if !errors.Is(err, rewards.ErrIdempotencyConflict) {
+		t.Fatalf("reused key error = %v, want ErrIdempotencyConflict", err)
+	}
+}
+
+func TestRewardRepositoryValidatesCategory(t *testing.T) {
+	pool := newPool(t)
+	service, err := rewards.NewService(storage.NewRewardRepository(pool))
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	user := createUser(t, pool)
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	issued, err := service.IssueLevel(context.Background(), user.ID, 15, 1, now)
+	if err != nil {
+		t.Fatalf("IssueLevel() error = %v", err)
+	}
+	if len(issued) != 1 {
+		t.Fatalf("len(issued) = %d, want 1", len(issued))
+	}
+	_, err = service.Redeem(context.Background(), user.ID, issued[0].ID, uuid.New(), "unknown", "")
+	validationError := rewards.ValidationError{}
+	if !errors.As(err, &validationError) || validationError.Field != "category_code" {
+		t.Fatalf("Redeem() error = %v, want category validation error", err)
+	}
+	redeemed, err := service.Redeem(
+		context.Background(), user.ID, issued[0].ID, uuid.New(), "electronics", "",
+	)
+	if err != nil {
+		t.Fatalf("Redeem() with allowed category error = %v", err)
+	}
+	if redeemed.Status != rewards.StatusRedeemed {
+		t.Fatalf("redeemed status = %q, want %q", redeemed.Status, rewards.StatusRedeemed)
+	}
+}
+
+func TestRewardRepositorySelectsLeaderboardAward(t *testing.T) {
+	pool := newPool(t)
+	service, err := rewards.NewService(storage.NewRewardRepository(pool))
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	user := createUser(t, pool)
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	weekID := uuid.New()
+	if _, err = pool.Exec(context.Background(), `
+		INSERT INTO leaderboard_weeks (
+			id, starts_at, ends_at, status, participants_count, top_5_max_rank, finalized_at
+		) VALUES ($1, $2, $3, 'final', 1, 1, $3)`, weekID, now.AddDate(0, 0, -7), now); err != nil {
+		t.Fatalf("insert leaderboard week: %v", err)
+	}
+	if _, err = pool.Exec(context.Background(), `
+		INSERT INTO leaderboard_results (
+			week_id, user_id, display_name, weekly_experience, rank, reached_at, prize_tier
+		) VALUES ($1, $2, $3, 100, 1, $4, 5)`, weekID, user.ID, user.DisplayName, now); err != nil {
+		t.Fatalf("insert leaderboard result: %v", err)
+	}
+	awardID := uuid.New()
+	if _, err = pool.Exec(context.Background(), `
+		INSERT INTO leaderboard_awards (id, week_id, user_id, tier, select_before)
+		VALUES ($1, $2, $3, 5, $4)`, awardID, weekID, user.ID, now.AddDate(0, 0, 7)); err != nil {
+		t.Fatalf("insert leaderboard award: %v", err)
+	}
+	inventory, err := service.ListInventory(context.Background(), user.ID, "")
+	if err != nil {
+		t.Fatalf("ListInventory() error = %v", err)
+	}
+	if len(inventory.LeaderboardAwards) != 1 || len(inventory.LeaderboardAwards[0].Options) != 3 {
+		t.Fatalf("leaderboard awards = %+v", inventory.LeaderboardAwards)
+	}
+	key := uuid.New()
+	selected, err := service.SelectAward(
+		context.Background(), user.ID, awardID, key, "leaderboard_5_autoteka",
+	)
+	if err != nil {
+		t.Fatalf("SelectAward() error = %v", err)
+	}
+	if selected.Code != "leaderboard_5_autoteka" || selected.Source != rewards.SourceLeaderboard {
+		t.Fatalf("selected reward = %+v", selected)
+	}
+	repeated, err := service.SelectAward(
+		context.Background(), user.ID, awardID, key, "leaderboard_5_autoteka",
+	)
+	if err != nil {
+		t.Fatalf("repeated SelectAward() error = %v", err)
+	}
+	if repeated.ID != selected.ID {
+		t.Fatalf("repeated reward id = %s, want %s", repeated.ID, selected.ID)
+	}
+}
+
+func createPet(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	petID := uuid.Nil
+	if err := pool.QueryRow(
+		context.Background(),
+		`INSERT INTO pets (user_id, name) VALUES ($1, 'Тестовый питомец') RETURNING id`,
+		userID,
+	).Scan(&petID); err != nil {
+		t.Fatalf("create pet: %v", err)
+	}
+	return petID
+}
+
+func insertPetAction(
+	t *testing.T,
+	pool *pgxpool.Pool,
+	userID uuid.UUID,
+	petID uuid.UUID,
+	experience int,
+	occurredAt time.Time,
+) {
+	t.Helper()
+	if _, err := pool.Exec(
+		context.Background(),
+		`INSERT INTO pet_actions (
+			user_id, pet_id, activity_code, experience_awarded, idempotency_key, occurred_at
+		) VALUES ($1, $2, 'feed', $3, $4, $5)`,
+		userID,
+		petID,
+		experience,
+		uuid.New(),
+		occurredAt,
+	); err != nil {
+		t.Fatalf("insert pet action: %v", err)
+	}
+}
+
+var _ leaderboard.Repository = (*storage.LeaderboardRepository)(nil)

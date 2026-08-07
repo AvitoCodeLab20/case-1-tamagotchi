@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -15,7 +16,9 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
 
@@ -50,17 +53,34 @@ func run(logger *logging.Logger) error {
 		return fmt.Errorf("build auth service: %w", err)
 	}
 
+	leaderboardRepository := storage.NewLeaderboardRepository(databasePool)
+	leaderboardService, err := leaderboard.NewService(leaderboardRepository)
+	if err != nil {
+		return fmt.Errorf("build leaderboard service: %w", err)
+	}
+	leaderboardFinalizer, err := leaderboard.NewFinalizer(leaderboardRepository)
+	if err != nil {
+		return fmt.Errorf("build leaderboard finalizer: %w", err)
+	}
+	rewardService, err := rewards.NewService(storage.NewRewardRepository(databasePool))
+	if err != nil {
+		return fmt.Errorf("build reward service: %w", err)
+	}
+
 	server, err := httpserver.New(httpserver.Options{
-		Address:  cfg.HTTPAddress,
-		Database: databasePool,
-		Auth:     authService,
-		Logger:   logger,
+		Address:     cfg.HTTPAddress,
+		Database:    databasePool,
+		Auth:        authService,
+		Leaderboard: leaderboardService,
+		Rewards:     rewardService,
+		Logger:      logger,
 	})
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)
 	}
 
 	serverErrors := make(chan error, 1)
+	go runLeaderboardFinalizer(rootContext, logger, leaderboardFinalizer)
 
 	go func() {
 		logger.Info("http server started", "address", cfg.HTTPAddress)
@@ -86,8 +106,6 @@ func run(logger *logging.Logger) error {
 	return nil
 }
 
-// newAuthService assembles the authentication stack: PostgreSQL repositories
-// underneath, the JWT issuer and the password hasher on top.
 func newAuthService(cfg config.AuthConfig, pool *pgxpool.Pool, logger *logging.Logger) (*auth.Service, error) {
 	tokenIssuer, err := auth.NewTokenIssuer(cfg.JWTSecret, cfg.JWTIssuer, cfg.AccessTokenTTL)
 	if err != nil {
@@ -112,4 +130,27 @@ func newAuthService(cfg config.AuthConfig, pool *pgxpool.Pool, logger *logging.L
 	}
 
 	return service, nil
+}
+
+func runLeaderboardFinalizer(
+	ctx context.Context,
+	logger *logging.Logger,
+	finalizer *leaderboard.Finalizer,
+) {
+	finalize := func() {
+		if err := finalizer.FinalizePreviousWeek(ctx, time.Now()); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error("leaderboard finalization failed", "error", err)
+		}
+	}
+	finalize()
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			finalize()
+		}
+	}
 }
