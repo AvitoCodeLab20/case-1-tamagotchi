@@ -1,5 +1,11 @@
 import styles from './HomePage.module.scss';
+import { Header } from '@widgets/header';
 
 export function HomePage() {
-    return <div className={styles.homePage}>HomePage</div>;
+    return (
+        <>
+            <Header />
+            <main className={styles.homePage}>HomePage</main>
+        </>
+    );
 }
