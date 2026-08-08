@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
@@ -54,11 +55,24 @@ func run(logger *logging.Logger) error {
 	petRepository := storage.NewPetRepository(databasePool)
 	petService := pet.NewService(petRepository)
 
+	activityRepository := storage.NewActivityRepository(databasePool)
+	petActionRepository := storage.NewPetActionRepository(databasePool)
+	transactionManager := storage.NewTransactionManager(databasePool)
+
+	activityService := activity.NewService(
+		activityRepository,
+		activityRepository,
+		petActionRepository,
+		petRepository,
+		transactionManager,
+	)
+
 	server, err := httpserver.New(httpserver.Options{
 		Address:  cfg.HTTPAddress,
 		Database: databasePool,
 		Auth:     authService,
 		Pet:      petService,
+		Activity: activityService,
 		Logger:   logger,
 	})
 	if err != nil {

@@ -52,7 +52,7 @@ func (repository *UserRepository) Create(ctx context.Context, params auth.Create
 		}
 
 		return auth.User{}, fmt.Errorf("insert user: %w", err)
-	}
+	}	
 
 	return user, nil
 }

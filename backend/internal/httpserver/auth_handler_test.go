@@ -85,6 +85,7 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 		Database: readinessStub{err: cfg.databaseErr},
 		Auth:     service,
 		Pet:      petServiceStub{},
+		Activity: &activityServiceStub{},
 		Logger:   logger,
 	})
 	if err != nil {

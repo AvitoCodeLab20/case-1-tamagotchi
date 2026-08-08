@@ -6,6 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type ApplyActionParams struct {
+	Experience int
+	Health     int
+	Hunger     int
+	Happiness  int
+	Energy     int
+	OccurredAt time.Time
+}
+
 type Pet struct {
 	ID                uuid.UUID
 	UserID            uuid.UUID

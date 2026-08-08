@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+const (
+	codeInvalidActivityCode = "invalid_activity_code"
+	codeActivityNotActive   = "activity_not_active"
+	codeCooldownActive      = "cooldown_active"
+	codeDailyLimitReached   = "daily_limit_reached"
+)
+
 const healthCheckTimeout = 2 * time.Second
 
 type readinessChecker interface {
@@ -21,6 +28,7 @@ type Options struct {
 	Database readinessChecker
 	Auth     authService
 	Pet      petService
+	Activity activityService
 	Logger   *slog.Logger
 }
 
@@ -33,6 +41,8 @@ func New(options Options) (*http.Server, error) {
 		return nil, errors.New("httpserver: auth service is required")
 	case options.Pet == nil:
 		return nil, errors.New("httpserver: pet service is required")
+	case options.Activity == nil:
+		return nil, errors.New("httpserver: activity service is required")
 	case options.Logger == nil:
 		return nil, errors.New("httpserver: logger is required")
 	}
@@ -65,7 +75,8 @@ func newRouter(options Options) http.Handler {
 	mux.Handle("POST /api/v1/auth/logout-all", chain(logoutAllHandler(options.Auth, options.Logger), authenticated))
 	mux.Handle("GET /api/v1/auth/me", chain(currentUserHandler(options.Auth, options.Logger), authenticated))
 	mux.Handle("GET /api/v1/pet", chain(petHandler(options.Pet, options.Logger), authenticated))
-
+	mux.Handle("GET /api/v1/activity-types", chain(activityTypesHandler(options.Activity, options.Logger), authenticated))
+	mux.Handle("POST /api/v1/pet/actions", chain(performPetActionHandler(options.Activity, options.Logger), authenticated))
 	return mux
 }
 
