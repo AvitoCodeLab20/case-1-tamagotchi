@@ -9,6 +9,8 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local backend
+  - url: ws://localhost:8080
+    description: websocket pet states
 tags:
   - name: Pet
     description: Current state of the authenticated user's pet.
@@ -21,6 +23,50 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/ws-ticket:
+    post:
+      tags: [Pet]
+      operationId: createPetWebSocketTicket
+      summary: Create a one-time ticket for the pet WebSocket
+      description: |
+        The authenticated client uses the ticket to establish a WebSocket
+        connection. The ticket is single-use and expires shortly after issue.
+      responses:
+        "200":
+          description: One-time WebSocket connection ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebSocketTicketResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/ws/pet:
+    get:
+      tags: [Pet]
+      operationId: subscribeToPetState
+      summary: Subscribe to current user's pet-state updates
+      description: |
+        Upgrades the connection authenticated by a one-time `ticket` query
+        parameter to WebSocket. After the upgrade, the server sends a JSON
+        `PetState` message whenever the pet state changes.
+        Every message contains `level`, `experience`, `health`, `hunger`,
+        `happiness`, and `energy`.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/WebSocketTicket"
+      responses:
+        "101":
+          description: Switching Protocols; the WebSocket message payload is PetState
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetState"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/v1/pet:
     get:
       tags: [Pet]
@@ -28,7 +74,7 @@ paths:
       summary: Get the current user's pet
       responses:
         "200":
-          description: Pet state, current level, streak and activity catalog
+          description: Pet information, current level and streak
           content:
             application/json:
               schema:
@@ -177,6 +223,14 @@ components:
       schema:
         type: string
         format: uuid
+    WebSocketTicket:
+      name: ticket
+      in: query
+      required: true
+      description: Short-lived, single-use ticket issued by POST /api/v1/ws-ticket
+      schema:
+        type: string
+        minLength: 1
 
   responses:
     BadRequest:
@@ -215,6 +269,18 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
+    WebSocketTicketResponse:
+      type: object
+      additionalProperties: false
+      required: [ticket, expires_at]
+      properties:
+        ticket:
+          type: string
+          minLength: 1
+        expires_at:
+          type: string
+          format: date-time
+
     PetResponse:
       type: object
       additionalProperties: false
@@ -240,10 +306,7 @@ components:
         - hunger
         - happiness
         - energy
-        - state_version
         - last_interaction_at
-        - created_at
-        - updated_at
       properties:
         id:
           type: string
@@ -278,18 +341,8 @@ components:
           type: integer
           minimum: 0
           maximum: 100
-        state_version:
-          type: integer
-          format: int64
-          minimum: 1
         last_interaction_at:
           type: [string, "null"]
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
           format: date-time
 
     Level:
@@ -494,6 +547,7 @@ components:
     PetState:
       type: object
       additionalProperties: false
+      required: [level, experience, health, hunger, happiness, energy]
       properties:
         level:
           type: integer

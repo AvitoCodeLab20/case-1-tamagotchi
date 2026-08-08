@@ -71,6 +71,7 @@ sequenceDiagram
 | `POST` | `/auth/logout` | — | Отозвать предъявленный refresh-токен. |
 | `POST` | `/auth/logout-all` | Bearer | Отозвать все сессии пользователя. |
 | `GET` | `/auth/me` | Bearer | Профиль текущего пользователя. |
+| `POST` | `/ws-ticket` | Bearer | Выпустить короткоживущий одноразовый ticket для WebSocket-соединения. |
 
 ### Регистрация
 
@@ -113,6 +114,28 @@ Content-Type: application/json
 GET /api/v1/auth/me
 Authorization: Bearer <access_token>
 ```
+
+### Подключение WebSocket
+
+Браузерный WebSocket-клиент не может добавить произвольный заголовок
+`Authorization` к handshake. Поэтому клиент сначала получает ticket
+авторизованным запросом:
+
+```http
+POST /api/v1/ws-ticket
+Authorization: Bearer <access_token>
+```
+
+Ответ содержит одноразовый ticket и время его истечения. Клиент передаёт его
+только при установлении соединения:
+
+```text
+wss://api.example.com/api/v1/ws/pet?ticket=<ticket>
+```
+
+Ticket должен быть непрозрачным, одноразовым и короткоживущим (30–60 секунд).
+Сервер погашает его атомарно при успешном handshake. Access JWT не передаётся
+в URL и не используется в качестве ticket.
 
 ### Ошибки
 
