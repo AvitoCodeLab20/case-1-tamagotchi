@@ -18,14 +18,18 @@ const maxRequestBodyBytes = 8 << 10
 // Error codes returned in the error envelope. Clients branch on the code, never
 // on the message, so messages stay free to change.
 const (
-	codeBadRequest         = "bad_request"
-	codeValidationFailed   = "validation_failed"
-	codeInvalidCredentials = "invalid_credentials" //nolint:gosec // an error code, not a credential
-	codeEmailTaken         = "email_taken"
-	codeUserNotActive      = "user_not_active"
-	codeUnauthorized       = "unauthorized"
-	codeRateLimited        = "rate_limited"
-	codeInternalError      = "internal_error"
+	codeBadRequest          = "bad_request"
+	codeValidationFailed    = "validation_failed"
+	codeInvalidCredentials  = "invalid_credentials" //nolint:gosec // an error code, not a credential
+	codeEmailTaken          = "email_taken"
+	codeUserNotActive       = "user_not_active"
+	codeUnauthorized        = "unauthorized"
+	codeRateLimited         = "rate_limited"
+	codeNotFound            = "not_found"
+	codeRewardNotAvailable  = "reward_not_available"
+	codeSelectionExpired    = "selection_expired"
+	codeIdempotencyConflict = "idempotency_conflict"
+	codeInternalError       = "internal_error"
 )
 
 // errorResponse is the single error shape of the API.
