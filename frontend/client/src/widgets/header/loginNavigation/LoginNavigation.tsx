@@ -1,12 +1,12 @@
-import styles from './Navigation.module.scss';
-import { Link, NavLink } from 'react-router-dom';
+import styles from './LoginNavigation.module.scss';
+import { Link } from 'react-router-dom';
 import { ERoutes } from '@entities/paths';
 import { Button } from '@mui/material';
 import { logout, useSessionStore } from '@entities/session';
 
-export function Navigation() {
-    const isRegistered = useSessionStore((state) => state.status === 'authenticated');
-
+export function LoginNavigation() {
+    const isRegistered = useSessionStore((state) => state.status !== 'authenticated');
+    console.log(isRegistered);
     return (
         <nav className={styles.nav}>
             {!isRegistered ? (
@@ -30,17 +30,7 @@ export function Navigation() {
                 </>
             ) : (
                 <>
-                    <NavLink to={ERoutes.Leaderboard}>
-                        <Button variant="contained" color="primary">
-                            Лидерборд
-                        </Button>
-                    </NavLink>
-                    <NavLink to={ERoutes.Home}>
-                        <Button variant="contained" color="secondary">
-                            Питомец
-                        </Button>
-                    </NavLink>
-                    <Button variant="outlined" onClick={() => void logout()}>
+                    <Button variant="contained" onClick={() => void logout()}>
                         Выйти
                     </Button>
                 </>

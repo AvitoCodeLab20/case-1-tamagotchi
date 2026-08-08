@@ -35,18 +35,22 @@ export function AuthForm(props: AuthFormProps) {
         setError(null);
         setIsSubmitting(true);
 
-        try {
-            if (isRegisterMode) {
+        if (isRegisterMode) {
+            try {
                 await signUp({ email, password });
-            } else {
-                await signIn({ email, password });
+                navigate(ERoutes.Home, { replace: true });
+            } catch {
+                setError('Не удалось выполнить регистрацию. Попробуйте чуть позже.');
             }
-            navigate(ERoutes.Home, { replace: true });
-        } catch {
-            setError('Не удалось выполнить вход. Проверьте данные и попробуйте ещё раз.');
-        } finally {
-            setIsSubmitting(false);
+        } else {
+            try {
+                await signIn({ email, password });
+                navigate(ERoutes.Home, { replace: true });
+            } catch {
+                setError('Не удалось выполнить вход. Проверьте данные и попробуйте ещё раз.');
+            }
         }
+        setIsSubmitting(false);
     };
 
     return (
