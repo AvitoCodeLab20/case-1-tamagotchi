@@ -1,0 +1,453 @@
+openapi: 3.1.0
+info:
+  title: Avito Tamagotchi Rewards and Leaderboard API
+  version: 0.1.0
+  description: |
+    Draft contract for the rewards and weekly leaderboard scope. Authentication
+    uses the Bearer access token defined by the authentication module.
+servers:
+  - url: http://localhost:8080
+    description: Local backend
+tags:
+  - name: Rewards
+  - name: Leaderboard
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/rewards:
+    get:
+      tags: [Rewards]
+      operationId: listRewards
+      summary: List the current user's rewards and pending leaderboard choices
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [issued, redeemed, expired, revoked]
+      responses:
+        "200":
+          description: Reward inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardInventory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/rewards/{reward_id}/redeem:
+    post:
+      tags: [Rewards]
+      operationId: redeemReward
+      summary: Apply one reward owned by the current user
+      parameters:
+        - $ref: "#/components/parameters/RewardID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemRewardRequest"
+      responses:
+        "200":
+          description: The reward was applied, or the same idempotent request was repeated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reward"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/leaderboard/current:
+    get:
+      tags: [Leaderboard]
+      operationId: getCurrentLeaderboard
+      summary: Get the current weekly leaderboard and the current user's position
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of leading entries to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Current weekly leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Leaderboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/leaderboard/awards/{award_id}/select:
+    post:
+      tags: [Leaderboard]
+      operationId: selectLeaderboardAward
+      summary: Select one reward from a finalized leaderboard award
+      parameters:
+        - name: award_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectLeaderboardAwardRequest"
+      responses:
+        "200":
+          description: Selected reward, or the same idempotent request was repeated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reward"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    RewardID:
+      name: reward_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID generated once by the client and reused only to retry this operation
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid JSON or request field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing, invalid, or expired access token
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: The resource does not exist or does not belong to the current user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Reward state does not permit this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    RewardInventory:
+      type: object
+      additionalProperties: false
+      required: [rewards, leaderboard_awards]
+      properties:
+        rewards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reward"
+        leaderboard_awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardAward"
+
+    Reward:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - code
+        - title
+        - description
+        - source
+        - status
+        - benefit
+        - issued_at
+        - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: level_5_delivery_10
+        title:
+          type: string
+          example: Скидка 10% на доставку
+        description:
+          type: string
+        source:
+          type: string
+          enum: [level, streak, leaderboard]
+        status:
+          type: string
+          enum: [issued, redeemed, expired, revoked]
+        benefit:
+          $ref: "#/components/schemas/RewardBenefit"
+        issued_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        redeemed_at:
+          type: [string, "null"]
+          format: date-time
+
+    RewardBenefit:
+      type: object
+      additionalProperties: false
+      required: [type, category_selection_required]
+      properties:
+        type:
+          type: string
+          enum:
+            - delivery_discount
+            - free_delivery
+            - promotion_discount
+            - promotion_certificate
+            - category_discount
+            - price_highlight
+            - xl_listing
+            - xl_listing_with_badge
+            - autoteka_report
+        percent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        amount_rub:
+          type: integer
+          minimum: 1
+        max_amount_rub:
+          type: integer
+          minimum: 1
+        duration_days:
+          type: integer
+          minimum: 1
+        category_selection_required:
+          type: boolean
+
+    RedeemRewardRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        category_code:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Required only for a category reward
+        listing_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Required only for a reward applied to one listing
+
+    Leaderboard:
+      type: object
+      additionalProperties: false
+      required: [period, status, participants_count, entries]
+      properties:
+        period:
+          $ref: "#/components/schemas/LeaderboardPeriod"
+        status:
+          type: string
+          enum: [in_progress, final]
+        participants_count:
+          type: integer
+          minimum: 0
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+        me:
+          anyOf:
+            - $ref: "#/components/schemas/LeaderboardEntry"
+            - type: "null"
+        next_tier:
+          anyOf:
+            - $ref: "#/components/schemas/NextTierProgress"
+            - type: "null"
+
+    LeaderboardPeriod:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at, timezone]
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          const: Europe/Moscow
+
+    LeaderboardEntry:
+      type: object
+      additionalProperties: false
+      required: [user_id, display_name, rank, weekly_experience, prize_tier, is_current_user]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        rank:
+          type: integer
+          minimum: 1
+        weekly_experience:
+          type: integer
+          minimum: 1
+        prize_tier:
+          type: [integer, "null"]
+          enum: [5, 10, 15, null]
+        is_current_user:
+          type: boolean
+
+    NextTierProgress:
+      type: object
+      additionalProperties: false
+      required: [tier, experience_required]
+      properties:
+        tier:
+          type: integer
+          enum: [5, 10, 15]
+        experience_required:
+          type: integer
+          minimum: 0
+
+    LeaderboardAward:
+      type: object
+      additionalProperties: false
+      required: [id, week_starts_at, tier, status, select_before, options]
+      properties:
+        id:
+          type: string
+          format: uuid
+        week_starts_at:
+          type: string
+          format: date-time
+        tier:
+          type: integer
+          enum: [5, 10, 15]
+        status:
+          type: string
+          const: selection_pending
+        select_before:
+          type: string
+          format: date-time
+        options:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/RewardOption"
+
+    RewardOption:
+      type: object
+      additionalProperties: false
+      required: [code, title, description, benefit]
+      properties:
+        code:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        benefit:
+          $ref: "#/components/schemas/RewardBenefit"
+
+    SelectLeaderboardAwardRequest:
+      type: object
+      additionalProperties: false
+      required: [option_code]
+      properties:
+        option_code:
+          type: string
+          minLength: 1
+          maxLength: 100
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - bad_request
+                - validation_failed
+                - unauthorized
+                - not_found
+                - reward_not_available
+                - selection_expired
+                - idempotency_conflict
+                - internal_error
+            message:
+              type: string
+            field:
+              type: string
