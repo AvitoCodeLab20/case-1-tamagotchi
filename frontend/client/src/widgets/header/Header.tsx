@@ -5,14 +5,15 @@ import { useSessionStore } from '@entities/session';
 import { StatusBar } from './statusBar';
 import { Stack } from '@mui/material';
 export function Header() {
-    const isRegistered = useSessionStore((state) => state.status !== 'authenticated');
+    const accessToken = useSessionStore((state) => state.accessToken);
+    const isAuthenticated = useSessionStore((state) => state.status === 'authenticated');
 
     return (
         <>
             <header className={styles.header}>
                 <Stack direction="row" spacing="5%">
                     <PageNavigation />
-                    {isRegistered && <StatusBar></StatusBar>}
+                    {isAuthenticated && <StatusBar accessToken={accessToken} />}
                 </Stack>
                 <LoginNavigation />
             </header>

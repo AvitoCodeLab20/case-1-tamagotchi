@@ -5,7 +5,7 @@ import { Button } from '@mui/material';
 import { logout, useSessionStore } from '@entities/session';
 
 export function LoginNavigation() {
-    const isRegistered = useSessionStore((state) => state.status !== 'authenticated');
+    const isRegistered = useSessionStore((state) => state.status === 'authenticated');
     console.log(isRegistered);
     return (
         <nav className={styles.nav}>
