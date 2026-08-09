@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/google/uuid"
 )
@@ -127,6 +128,7 @@ func (service *Service) PerformAction(
 			petRepository PetRepository,
 			actionRepository ActionRepository,
 			progressRepository ProgressRepository,
+			dailySummaryRepository DailySummaryRepository,
 		) error {
 			if err := petRepository.LockByUserID(
 				ctx,
@@ -156,6 +158,14 @@ func (service *Service) PerformAction(
 			}
 
 			if !errors.Is(err, ErrActionNotFound) {
+				return err
+			}
+
+			petBefore, err := petRepository.ByUserID(
+				ctx,
+				params.UserID,
+			)
+			if err != nil {
 				return err
 			}
 
@@ -217,6 +227,23 @@ func (service *Service) PerformAction(
 				return err
 			}
 
+			levelsGained := updatedPet.Level - petBefore.Level
+
+			if err := dailySummaryRepository.UpsertAction(
+				ctx,
+				dailysummary.UpsertParams{
+					UserID:           params.UserID,
+					SummaryDate:      now,
+					ExperienceEarned: createdAction.ExperienceAwarded,
+					LevelsGained:     levelsGained,
+					StateBefore:      dailySummaryPetState(petBefore),
+					StateAfter:       dailySummaryPetState(updatedPet),
+					GeneratedAt:      now,
+				},
+			); err != nil {
+				return err
+			}
+
 			result = PerformActionResult{
 				Action:     createdAction,
 				Pet:        updatedPet,
@@ -227,6 +254,7 @@ func (service *Service) PerformAction(
 			return nil
 		},
 	)
+
 	if err != nil {
 		return PerformActionResult{}, err
 	}
@@ -290,5 +318,16 @@ func stateDeltaForActivity(activityCode string) StateDelta {
 
 	default:
 		return StateDelta{}
+	}
+}
+
+func dailySummaryPetState(value pet.Pet) dailysummary.PetState {
+	return dailysummary.PetState{
+		Level:      value.Level,
+		Experience: value.Experience,
+		Health:     value.Health,
+		Hunger:     value.Hunger,
+		Happiness:  value.Happiness,
+		Energy:     value.Energy,
 	}
 }

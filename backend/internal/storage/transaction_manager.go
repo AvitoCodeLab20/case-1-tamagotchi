@@ -23,6 +23,7 @@ func (manager *TransactionManager) WithinTransaction(
 		activity.PetRepository,
 		activity.ActionRepository,
 		activity.ProgressRepository,
+		activity.DailySummaryRepository,
 	) error,
 ) error {
 	tx, err := manager.db.Begin(ctx)
@@ -37,11 +38,13 @@ func (manager *TransactionManager) WithinTransaction(
 	petRepository := NewPetRepository(tx)
 	actionRepository := NewPetActionRepository(tx)
 	progressRepository := NewProgressRepository(tx)
+	dailySummaryRepository := NewDailySummaryRepository(tx)
 
 	if err := fn(
 		petRepository,
 		actionRepository,
 		progressRepository,
+		dailySummaryRepository,
 	); err != nil {
 		return err
 	}

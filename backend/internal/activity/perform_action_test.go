@@ -8,9 +8,26 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 )
+
+type fakeDailySummaryRepository struct {
+	calls  int
+	params dailysummary.UpsertParams
+	err    error
+}
+
+func (repository *fakeDailySummaryRepository) UpsertAction(
+	_ context.Context,
+	params dailysummary.UpsertParams,
+) error {
+	repository.calls++
+	repository.params = params
+
+	return repository.err
+}
 
 type fakeProgressRepository struct {
 	level     progress.Level
@@ -46,16 +63,22 @@ func (repository *fakeProgressRepository) AdvanceStreak(
 }
 
 type fakeTransactionManager struct {
-	petRepository      PetRepository
-	actionRepository   ActionRepository
-	progressRepository ProgressRepository
-	calls              int
-	err                error
+	petRepository          PetRepository
+	actionRepository       ActionRepository
+	progressRepository     ProgressRepository
+	dailySummaryRepository DailySummaryRepository
+	calls                  int
+	err                    error
 }
 
 func (manager *fakeTransactionManager) WithinTransaction(
-	ctx context.Context,
-	fn func(PetRepository, ActionRepository, ProgressRepository) error,
+	_ context.Context,
+	fn func(
+		PetRepository,
+		ActionRepository,
+		ProgressRepository,
+		DailySummaryRepository,
+	) error,
 ) error {
 	manager.calls++
 
@@ -63,7 +86,12 @@ func (manager *fakeTransactionManager) WithinTransaction(
 		return manager.err
 	}
 
-	return fn(manager.petRepository, manager.actionRepository, manager.progressRepository)
+	return fn(
+		manager.petRepository,
+		manager.actionRepository,
+		manager.progressRepository,
+		manager.dailySummaryRepository,
+	)
 }
 
 type fakePetRepository struct {
@@ -374,11 +402,13 @@ func TestPerformActionSuccess(t *testing.T) {
 			LongestDays: 1,
 		},
 	}
+	dailySummaryRepository := &fakeDailySummaryRepository{}
 
 	transactionManager := &fakeTransactionManager{
-		petRepository:      petRepository,
-		actionRepository:   actionRepository,
-		progressRepository: progressRepository,
+		petRepository:          petRepository,
+		actionRepository:       actionRepository,
+		progressRepository:     progressRepository,
+		dailySummaryRepository: dailySummaryRepository,
 	}
 
 	service := NewService(
@@ -480,6 +510,28 @@ func TestPerformActionSuccess(t *testing.T) {
 		t.Errorf(
 			"WithinTransaction() called %d times, want 1",
 			transactionManager.calls,
+		)
+	}
+
+	if dailySummaryRepository.calls != 1 {
+		t.Errorf(
+			"UpsertAction() called %d times, want 1",
+			dailySummaryRepository.calls,
+		)
+	}
+
+	if dailySummaryRepository.params.UserID != userID {
+		t.Errorf(
+			"UpsertAction UserID = %v, want %v",
+			dailySummaryRepository.params.UserID,
+			userID,
+		)
+	}
+
+	if dailySummaryRepository.params.ExperienceEarned != 10 {
+		t.Errorf(
+			"UpsertAction ExperienceEarned = %d, want 10",
+			dailySummaryRepository.params.ExperienceEarned,
 		)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
@@ -62,6 +63,8 @@ func run(logger *logging.Logger) error {
 	activityRepository := storage.NewActivityRepository(databasePool)
 	petActionRepository := storage.NewPetActionRepository(databasePool)
 	transactionManager := storage.NewTransactionManager(databasePool)
+	dailySummaryRepository := storage.NewDailySummaryRepository(databasePool)
+	dailySummaryService := dailysummary.NewService(dailySummaryRepository)
 
 	activityService := activity.NewService(
 		activityRepository,
@@ -79,6 +82,7 @@ func run(logger *logging.Logger) error {
 		Pet:      petService,
 		Activity: activityService,
 		Progress: progressService,
+		Summary:  dailySummaryService,
 		Logger:   logger,
 	})
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 	"github.com/google/uuid"
@@ -92,6 +93,7 @@ type TransactionManager interface {
 			PetRepository,
 			ActionRepository,
 			ProgressRepository,
+			DailySummaryRepository,
 		) error,
 	) error
 }
@@ -116,4 +118,11 @@ func NewService(
 
 func (service *Service) ListTypes(ctx context.Context) ([]Type, error) {
 	return service.repository.ListActive(ctx)
+}
+
+type DailySummaryRepository interface {
+	UpsertAction(
+		ctx context.Context,
+		params dailysummary.UpsertParams,
+	) error
 }
