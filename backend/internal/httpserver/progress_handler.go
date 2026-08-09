@@ -12,6 +12,24 @@ import (
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 )
 
+func newUserStreakResponse(
+	value progress.UserStreak,
+) userStreakResponse {
+	var lastActiveDate *string
+
+	if value.LastActiveDate != nil {
+		formatted := value.LastActiveDate.Format(time.DateOnly)
+		lastActiveDate = &formatted
+	}
+
+	return userStreakResponse{
+		CurrentDays:    value.CurrentDays,
+		LongestDays:    value.LongestDays,
+		LastActiveDate: lastActiveDate,
+		UpdatedAt:      value.UpdatedAt,
+	}
+}
+
 type progressService interface {
 	Get(ctx context.Context, userID uuid.UUID) (progress.Progress, error)
 }
@@ -32,24 +50,12 @@ type userStreakResponse struct {
 }
 
 func newProgressResponse(value progress.Progress) progressResponse {
-	var lastActiveDate *string
-
-	if value.UserStreak.LastActiveDate != nil {
-		formatted := value.UserStreak.LastActiveDate.Format(time.DateOnly)
-		lastActiveDate = &formatted
-	}
-
 	return progressResponse{
 		Level:                   value.Level,
 		Experience:              value.Experience,
 		RequiredTotalExperience: value.RequiredTotalExperience,
 		Title:                   value.Title,
-		UserStreak: userStreakResponse{
-			CurrentDays:    value.UserStreak.CurrentDays,
-			LongestDays:    value.UserStreak.LongestDays,
-			LastActiveDate: lastActiveDate,
-			UpdatedAt:      value.UserStreak.UpdatedAt,
-		},
+		UserStreak:              newUserStreakResponse(value.UserStreak),
 	}
 }
 

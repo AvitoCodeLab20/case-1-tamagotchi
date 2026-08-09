@@ -82,8 +82,12 @@ func run(logger *logging.Logger) error {
 		Pet:      petService,
 		Activity: activityService,
 		Progress: progressService,
-		Summary:  dailySummaryService,
-		Logger:   logger,
+		WebSocketOrigins: []string{
+			"localhost:5173",
+			"127.0.0.1:5173",
+		},
+		Summary: dailySummaryService,
+		Logger:  logger,
 	})
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)

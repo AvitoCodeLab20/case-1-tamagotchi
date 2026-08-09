@@ -16,7 +16,6 @@ import (
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth/authtest"
-	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 )
 
 const (
@@ -36,11 +35,6 @@ type suite struct {
 	sessions *authtest.SessionRepository
 }
 
-type petServiceStub struct{}
-
-func (petServiceStub) Get(_ context.Context, _ uuid.UUID) (pet.Pet, error) {
-	return pet.Pet{}, pet.ErrNotFound
-}
 
 type suiteOption func(*suiteConfig)
 
@@ -84,7 +78,7 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 		Address:  ":0",
 		Database: readinessStub{err: cfg.databaseErr},
 		Auth:     service,
-		Pet:      petServiceStub{},
+		Pet:      &petServiceStub{},
 		Summary:  &dailySummaryHandlerServiceStub{},
 		Activity: &activityServiceStub{},
 		Progress: &progressServiceStub{},

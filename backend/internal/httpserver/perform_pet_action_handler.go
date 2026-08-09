@@ -18,16 +18,19 @@ type performPetActionRequest struct {
 }
 
 type performPetActionResponse struct {
-	PetAction petActionResponse `json:"pet_action"`
+	PetAction  petActionResponse  `json:"pet_action"`
+	Pet        petResponse        `json:"pet"`
+	Level      levelResponse      `json:"level"`
+	UserStreak userStreakResponse `json:"user_streak"`
 }
 
 type petActionResponse struct {
-	ID                int64     `json:"id"`
-	ActivityCode      string    `json:"activity_code"`
-	ExperienceAwarded int       `json:"experience_awarded"`
-	StateDelta        any       `json:"state_delta"`
-	OccurredAt        time.Time `json:"occurred_at"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                int64               `json:"id"`
+	ActivityCode      string              `json:"activity_code"`
+	ExperienceAwarded int                 `json:"experience_awarded"`
+	StateDelta        activity.StateDelta `json:"state_delta"`
+	OccurredAt        time.Time           `json:"occurred_at"`
+	CreatedAt         time.Time           `json:"created_at"`
 }
 
 func newPetActionResponse(value activity.Action) petActionResponse {
@@ -43,6 +46,7 @@ func newPetActionResponse(value activity.Action) petActionResponse {
 
 func performPetActionHandler(
 	service activityService,
+	statePublisher petStatePublisher,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
@@ -146,8 +150,15 @@ func performPetActionHandler(
 				writeError(
 					response,
 					http.StatusNotFound,
-					codePetNotFound,
+					codeNotFound,
 					"pet not found",
+				)
+			case errors.Is(err, activity.ErrIdempotencyConflict):
+				writeError(
+					response,
+					http.StatusConflict,
+					codeIdempotencyConflict,
+					"Idempotency-Key was already used for another action",
 				)
 
 			default:
@@ -162,8 +173,19 @@ func performPetActionHandler(
 			return
 		}
 
+		statePublisher.Publish(userID, actionResult.Pet)
+
 		writeJSON(response, http.StatusOK, performPetActionResponse{
 			PetAction: newPetActionResponse(actionResult.Action),
+			Pet:       newPetResponse(actionResult.Pet),
+			Level: levelResponse{
+				Level: actionResult.Level.Level,
+				RequiredTotalExperience: actionResult.Level.
+					RequiredTotalExperience,
+				Title:     actionResult.Level.Title,
+				CreatedAt: actionResult.Level.CreatedAt,
+			},
+			UserStreak: newUserStreakResponse(actionResult.UserStreak),
 		})
 	}
 }

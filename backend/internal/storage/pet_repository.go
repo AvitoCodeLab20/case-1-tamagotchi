@@ -171,9 +171,15 @@ func (repository *PetRepository) LockByUserID(
 		query,
 		userID,
 	).Scan(&petID)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pet.ErrNotFound
+	}
+
 	if err != nil {
 		return fmt.Errorf("lock pet by user id: %w", err)
 	}
 
 	return nil
+
 }

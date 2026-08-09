@@ -14,6 +14,7 @@ type Progress struct {
 	Experience              int64
 	RequiredTotalExperience int64
 	Title                   string
+	LevelCreatedAt          time.Time
 	UserStreak              UserStreak
 }
 

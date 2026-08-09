@@ -15,6 +15,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 )
 
 type performActionServiceStub struct {
@@ -23,6 +25,18 @@ type performActionServiceStub struct {
 
 	calls      int
 	lastParams activity.PerformActionParams
+}
+
+type petStatePublisherStub struct {
+	calls  int
+	userID uuid.UUID
+	pet    pet.Pet
+}
+
+func (stub *petStatePublisherStub) Publish(userID uuid.UUID, value pet.Pet) {
+	stub.calls++
+	stub.userID = userID
+	stub.pet = value
 }
 
 func (stub *performActionServiceStub) ListTypes(
@@ -46,26 +60,55 @@ func TestPerformPetActionHandler(t *testing.T) {
 	idempotencyKey := uuid.New()
 	occurredAt := time.Date(2026, 8, 8, 12, 30, 0, 0, time.UTC)
 	createdAt := time.Date(2026, 8, 8, 12, 30, 1, 0, time.UTC)
+	petCreatedAt := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
+	levelCreatedAt := time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC)
+	lastActiveDate := time.Date(2026, 8, 8, 0, 0, 0, 0, time.UTC)
+	streakUpdatedAt := time.Date(2026, 8, 8, 12, 30, 2, 0, time.UTC)
+	petID := uuid.New()
 
 	service := &performActionServiceStub{
 		result: activity.PerformActionResult{
 			Action: activity.Action{
 				ID:                42,
-				UserID:            userID,
 				ActivityCode:      "feed",
 				ExperienceAwarded: 10,
-				StateDelta: activity.StateDelta{
-					Hunger: 20,
-				},
-				IdempotencyKey: idempotencyKey,
-				OccurredAt:     occurredAt,
-				CreatedAt:      createdAt,
+				StateDelta:        activity.StateDelta{Hunger: 20},
+				OccurredAt:        occurredAt,
+				CreatedAt:         createdAt,
+			},
+			Pet: pet.Pet{
+				ID:                petID,
+				Name:              "Авитоша",
+				Species:           "avito_pet",
+				Level:             2,
+				Experience:        110,
+				Health:            100,
+				Hunger:            80,
+				Happiness:         90,
+				Energy:            70,
+				StateVersion:      3,
+				LastInteractionAt: &occurredAt,
+				CreatedAt:         petCreatedAt,
+				UpdatedAt:         occurredAt,
+			},
+			Level: progress.Level{
+				Level:                   2,
+				RequiredTotalExperience: 100,
+				Title:                   "Знакомство",
+				CreatedAt:               levelCreatedAt,
+			},
+			UserStreak: progress.UserStreak{
+				CurrentDays:    3,
+				LongestDays:    5,
+				LastActiveDate: &lastActiveDate,
+				UpdatedAt:      streakUpdatedAt,
 			},
 		},
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := performPetActionHandler(service, logger)
+	publisher := &petStatePublisherStub{}
+	handler := performPetActionHandler(service, publisher, logger)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -92,6 +135,19 @@ func TestPerformPetActionHandler(t *testing.T) {
 
 	if service.calls != 1 {
 		t.Fatalf("PerformAction calls = %d, want 1", service.calls)
+	}
+	if publisher.calls != 1 {
+		t.Fatalf("Publish calls = %d, want 1", publisher.calls)
+	}
+	if publisher.userID != userID {
+		t.Errorf("published UserID = %s, want %s", publisher.userID, userID)
+	}
+	if publisher.pet.StateVersion != service.result.Pet.StateVersion {
+		t.Errorf(
+			"published StateVersion = %d, want %d",
+			publisher.pet.StateVersion,
+			service.result.Pet.StateVersion,
+		)
 	}
 
 	if service.lastParams.UserID != userID {
@@ -157,12 +213,97 @@ func TestPerformPetActionHandler(t *testing.T) {
 			createdAt,
 		)
 	}
+
+	if got.PetAction.StateDelta.Hunger != 20 {
+		t.Errorf(
+			"StateDelta.Hunger = %d, want 20",
+			got.PetAction.StateDelta.Hunger,
+		)
+	}
+
+	if got.Pet.ID != petID {
+		t.Errorf("Pet.ID = %s, want %s", got.Pet.ID, petID)
+	}
+
+	if got.Pet.Experience != 110 {
+		t.Errorf("Pet.Experience = %d, want 110", got.Pet.Experience)
+	}
+
+	if got.Pet.StateVersion != 3 {
+		t.Errorf("Pet.StateVersion = %d, want 3", got.Pet.StateVersion)
+	}
+
+	if !got.Pet.CreatedAt.Equal(petCreatedAt) {
+		t.Errorf(
+			"Pet.CreatedAt = %s, want %s",
+			got.Pet.CreatedAt,
+			petCreatedAt,
+		)
+	}
+
+	if got.Level.Level != 2 {
+		t.Errorf("Level.Level = %d, want 2", got.Level.Level)
+	}
+
+	if got.Level.RequiredTotalExperience != 100 {
+		t.Errorf(
+			"Level.RequiredTotalExperience = %d, want 100",
+			got.Level.RequiredTotalExperience,
+		)
+	}
+
+	if got.Level.Title != "Знакомство" {
+		t.Errorf(
+			"Level.Title = %q, want %q",
+			got.Level.Title,
+			"Знакомство",
+		)
+	}
+
+	if !got.Level.CreatedAt.Equal(levelCreatedAt) {
+		t.Errorf(
+			"Level.CreatedAt = %s, want %s",
+			got.Level.CreatedAt,
+			levelCreatedAt,
+		)
+	}
+
+	if got.UserStreak.CurrentDays != 3 {
+		t.Errorf(
+			"UserStreak.CurrentDays = %d, want 3",
+			got.UserStreak.CurrentDays,
+		)
+	}
+
+	if got.UserStreak.LongestDays != 5 {
+		t.Errorf(
+			"UserStreak.LongestDays = %d, want 5",
+			got.UserStreak.LongestDays,
+		)
+	}
+
+	if got.UserStreak.LastActiveDate == nil ||
+		*got.UserStreak.LastActiveDate != "2026-08-08" {
+		t.Errorf(
+			"UserStreak.LastActiveDate = %v, want 2026-08-08",
+			got.UserStreak.LastActiveDate,
+		)
+	}
+
+	if !got.UserStreak.UpdatedAt.Equal(streakUpdatedAt) {
+		t.Errorf(
+			"UserStreak.UpdatedAt = %s, want %s",
+			got.UserStreak.UpdatedAt,
+			streakUpdatedAt,
+		)
+	}
+
 }
 
 func TestPerformPetActionHandlerEmptyActivityCode(t *testing.T) {
 	service := &performActionServiceStub{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := performPetActionHandler(service, logger)
+	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -216,7 +357,7 @@ func TestPerformPetActionHandlerEmptyActivityCode(t *testing.T) {
 func TestPerformPetActionHandlerInvalidIdempotencyKey(t *testing.T) {
 	service := &performActionServiceStub{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := performPetActionHandler(service, logger)
+	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -299,6 +440,18 @@ func TestPerformPetActionHandlerDomainErrors(t *testing.T) {
 			wantCode:   codeDailyLimitReached,
 		},
 		{
+			name:       "idempotency conflict",
+			serviceErr: activity.ErrIdempotencyConflict,
+			wantStatus: http.StatusConflict,
+			wantCode:   codeIdempotencyConflict,
+		},
+		{
+			name:       "pet not found",
+			serviceErr: pet.ErrNotFound,
+			wantStatus: http.StatusNotFound,
+			wantCode:   codeNotFound,
+		},
+		{
 			name:       "internal error",
 			serviceErr: errors.New("database error"),
 			wantStatus: http.StatusInternalServerError,
@@ -315,7 +468,8 @@ func TestPerformPetActionHandlerDomainErrors(t *testing.T) {
 			logger := slog.New(
 				slog.NewTextHandler(io.Discard, nil),
 			)
-			handler := performPetActionHandler(service, logger)
+			publisher := &petStatePublisherStub{}
+			handler := performPetActionHandler(service, publisher, logger)
 
 			request := httptest.NewRequest(
 				http.MethodPost,
@@ -365,6 +519,9 @@ func TestPerformPetActionHandlerDomainErrors(t *testing.T) {
 					service.calls,
 				)
 			}
+			if publisher.calls != 0 {
+				t.Errorf("Publish calls = %d, want 0", publisher.calls)
+			}
 		})
 	}
 }
@@ -372,7 +529,7 @@ func TestPerformPetActionHandlerDomainErrors(t *testing.T) {
 func TestPerformPetActionHandlerWithoutUserID(t *testing.T) {
 	service := &performActionServiceStub{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler := performPetActionHandler(service, logger)
+	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
