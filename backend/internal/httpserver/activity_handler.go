@@ -14,9 +14,8 @@ type activityService interface {
 	PerformAction(
 		ctx context.Context,
 		params activity.PerformActionParams,
-	) (activity.Action, error)
+	) (activity.PerformActionResult, error)
 }
-
 type activityTypeResponse struct {
 	Code            string `json:"code"`
 	Title           string `json:"title"`

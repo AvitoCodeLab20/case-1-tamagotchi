@@ -6,20 +6,56 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/google/uuid"
+
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 )
 
+type fakeProgressRepository struct {
+	level     progress.Level
+	levelErr  error
+	streak    progress.UserStreak
+	streakErr error
+
+	advanceCalls int
+}
+
+func (repository *fakeProgressRepository) LevelByNumber(
+	ctx context.Context,
+	levelNumber int,
+) (progress.Level, error) {
+	return repository.level, repository.levelErr
+}
+
+func (repository *fakeProgressRepository) StreakByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+) (progress.UserStreak, error) {
+	return repository.streak, repository.streakErr
+}
+
+func (repository *fakeProgressRepository) AdvanceStreak(
+	ctx context.Context,
+	userID uuid.UUID,
+	activeAt time.Time,
+) (progress.UserStreak, error) {
+	repository.advanceCalls++
+
+	return repository.streak, repository.streakErr
+}
+
 type fakeTransactionManager struct {
-	petRepository    PetRepository
-	actionRepository ActionRepository
-	calls            int
-	err              error
+	petRepository      PetRepository
+	actionRepository   ActionRepository
+	progressRepository ProgressRepository
+	calls              int
+	err                error
 }
 
 func (manager *fakeTransactionManager) WithinTransaction(
 	ctx context.Context,
-	fn func(PetRepository, ActionRepository) error,
+	fn func(PetRepository, ActionRepository, ProgressRepository) error,
 ) error {
 	manager.calls++
 
@@ -27,7 +63,7 @@ func (manager *fakeTransactionManager) WithinTransaction(
 		return manager.err
 	}
 
-	return fn(manager.petRepository, manager.actionRepository)
+	return fn(manager.petRepository, manager.actionRepository, manager.progressRepository)
 }
 
 type fakePetRepository struct {
@@ -150,7 +186,7 @@ func TestValidateActionSuccess(t *testing.T) {
 		nil,
 		typeRepository,
 		actionRepository,
-		nil, nil,
+		nil, nil, nil,
 	)
 
 	err := service.validateAction(
@@ -323,19 +359,35 @@ func TestPerformActionSuccess(t *testing.T) {
 		pet: pet.Pet{
 			ID:     petID,
 			UserID: userID,
+			Level:  1,
+		},
+	}
+
+	progressRepository := &fakeProgressRepository{
+		level: progress.Level{
+			Level:                   1,
+			RequiredTotalExperience: 0,
+			Title:                   "Новичок",
+		},
+		streak: progress.UserStreak{
+			CurrentDays: 1,
+			LongestDays: 1,
 		},
 	}
 
 	transactionManager := &fakeTransactionManager{
-		petRepository:    petRepository,
-		actionRepository: actionRepository,
+		petRepository:      petRepository,
+		actionRepository:   actionRepository,
+		progressRepository: progressRepository,
 	}
 
 	service := NewService(
 		nil,
 		typeRepository,
 		actionRepository,
-		petRepository, transactionManager,
+		petRepository,
+		progressRepository,
+		transactionManager,
 	)
 
 	got, err := service.PerformAction(
@@ -350,29 +402,63 @@ func TestPerformActionSuccess(t *testing.T) {
 		t.Fatalf("PerformAction() error = %v", err)
 	}
 
-	if got.UserID != userID {
-		t.Errorf("UserID = %v, want %v", got.UserID, userID)
-	}
-
-	if got.PetID != petID {
-		t.Errorf("PetID = %v, want %v", got.PetID, petID)
-	}
-
-	if got.ActivityCode != "feed" {
-		t.Errorf("ActivityCode = %q, want %q", got.ActivityCode, "feed")
-	}
-
-	if got.ExperienceAwarded != 10 {
+	if got.Action.UserID != userID {
 		t.Errorf(
-			"ExperienceAwarded = %d, want 10",
-			got.ExperienceAwarded,
+			"Action.UserID = %v, want %v",
+			got.Action.UserID,
+			userID,
 		)
 	}
 
-	if got.StateDelta.Hunger != 20 {
+	if got.Action.PetID != petID {
 		t.Errorf(
-			"StateDelta.Hunger = %d, want 20",
-			got.StateDelta.Hunger,
+			"Action.PetID = %v, want %v",
+			got.Action.PetID,
+			petID,
+		)
+	}
+
+	if got.Action.ActivityCode != "feed" {
+		t.Errorf(
+			"Action.ActivityCode = %q, want %q",
+			got.Action.ActivityCode,
+			"feed",
+		)
+	}
+
+	if got.Action.ExperienceAwarded != 10 {
+		t.Errorf(
+			"Action.ExperienceAwarded = %d, want 10",
+			got.Action.ExperienceAwarded,
+		)
+	}
+
+	if got.Action.StateDelta.Hunger != 20 {
+		t.Errorf(
+			"Action.StateDelta.Hunger = %d, want 20",
+			got.Action.StateDelta.Hunger,
+		)
+	}
+
+	if got.Pet.ID != petID {
+		t.Errorf(
+			"Pet.ID = %v, want %v",
+			got.Pet.ID,
+			petID,
+		)
+	}
+
+	if got.Level.Level != 1 {
+		t.Errorf(
+			"Level.Level = %d, want 1",
+			got.Level.Level,
+		)
+	}
+
+	if got.UserStreak.CurrentDays != 1 {
+		t.Errorf(
+			"UserStreak.CurrentDays = %d, want 1",
+			got.UserStreak.CurrentDays,
 		)
 	}
 
@@ -380,6 +466,13 @@ func TestPerformActionSuccess(t *testing.T) {
 		t.Errorf(
 			"ApplyAction() called %d times, want 1",
 			petRepository.applyCalls,
+		)
+	}
+
+	if progressRepository.advanceCalls != 1 {
+		t.Errorf(
+			"AdvanceStreak() called %d times, want 1",
+			progressRepository.advanceCalls,
 		)
 	}
 
@@ -393,11 +486,13 @@ func TestPerformActionSuccess(t *testing.T) {
 
 func TestPerformActionIdempotency(t *testing.T) {
 	userID := uuid.New()
+	petID := uuid.New()
 	idempotencyKey := uuid.New()
 
 	existingAction := Action{
 		ID:                42,
 		UserID:            userID,
+		PetID:             petID,
 		ActivityCode:      "feed",
 		ExperienceAwarded: 10,
 		IdempotencyKey:    idempotencyKey,
@@ -407,18 +502,38 @@ func TestPerformActionIdempotency(t *testing.T) {
 		existingAction: existingAction,
 	}
 
-	petRepository := &fakePetRepository{}
+	petRepository := &fakePetRepository{
+		pet: pet.Pet{
+			ID:     petID,
+			UserID: userID,
+			Level:  1,
+		},
+	}
+
+	progressRepository := &fakeProgressRepository{
+		level: progress.Level{
+			Level: 1,
+			Title: "Новичок",
+		},
+		streak: progress.UserStreak{
+			CurrentDays: 1,
+			LongestDays: 1,
+		},
+	}
 
 	transactionManager := &fakeTransactionManager{
-		petRepository:    petRepository,
-		actionRepository: actionRepository,
+		petRepository:      petRepository,
+		actionRepository:   actionRepository,
+		progressRepository: progressRepository,
 	}
 
 	service := NewService(
 		nil,
 		nil,
 		actionRepository,
-		petRepository, transactionManager,
+		petRepository,
+		progressRepository,
+		transactionManager,
 	)
 
 	got, err := service.PerformAction(
@@ -433,14 +548,47 @@ func TestPerformActionIdempotency(t *testing.T) {
 		t.Fatalf("PerformAction() error = %v", err)
 	}
 
-	if got.ID != existingAction.ID {
-		t.Errorf("ID = %d, want %d", got.ID, existingAction.ID)
+	if got.Action.ID != existingAction.ID {
+		t.Errorf(
+			"Action.ID = %d, want %d",
+			got.Action.ID,
+			existingAction.ID,
+		)
+	}
+
+	if got.Pet.ID != petID {
+		t.Errorf(
+			"Pet.ID = %v, want %v",
+			got.Pet.ID,
+			petID,
+		)
+	}
+
+	if got.Level.Level != 1 {
+		t.Errorf(
+			"Level.Level = %d, want 1",
+			got.Level.Level,
+		)
+	}
+
+	if got.UserStreak.CurrentDays != 1 {
+		t.Errorf(
+			"UserStreak.CurrentDays = %d, want 1",
+			got.UserStreak.CurrentDays,
+		)
 	}
 
 	if petRepository.applyCalls != 0 {
 		t.Errorf(
 			"ApplyAction() called %d times, want 0",
 			petRepository.applyCalls,
+		)
+	}
+
+	if progressRepository.advanceCalls != 0 {
+		t.Errorf(
+			"AdvanceStreak() called %d times, want 0",
+			progressRepository.advanceCalls,
 		)
 	}
 

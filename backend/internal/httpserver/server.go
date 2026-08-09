@@ -29,6 +29,7 @@ type Options struct {
 	Auth     authService
 	Pet      petService
 	Activity activityService
+	Progress progressService
 	Logger   *slog.Logger
 }
 
@@ -45,6 +46,8 @@ func New(options Options) (*http.Server, error) {
 		return nil, errors.New("httpserver: activity service is required")
 	case options.Logger == nil:
 		return nil, errors.New("httpserver: logger is required")
+	case options.Progress == nil:
+		return nil, errors.New("httpserver: progress service is required")
 	}
 
 	return &http.Server{
@@ -77,6 +80,7 @@ func newRouter(options Options) http.Handler {
 	mux.Handle("GET /api/v1/pet", chain(petHandler(options.Pet, options.Logger), authenticated))
 	mux.Handle("GET /api/v1/activity-types", chain(activityTypesHandler(options.Activity, options.Logger), authenticated))
 	mux.Handle("POST /api/v1/pet/actions", chain(performPetActionHandler(options.Activity, options.Logger), authenticated))
+	mux.Handle("GET /api/v1/progress", chain(progressHandler(options.Progress, options.Logger), authenticated))
 	return mux
 }
 

@@ -19,7 +19,11 @@ func NewTransactionManager(db *pgxpool.Pool) *TransactionManager {
 
 func (manager *TransactionManager) WithinTransaction(
 	ctx context.Context,
-	fn func(activity.PetRepository, activity.ActionRepository) error,
+	fn func(
+		activity.PetRepository,
+		activity.ActionRepository,
+		activity.ProgressRepository,
+	) error,
 ) error {
 	tx, err := manager.db.Begin(ctx)
 	if err != nil {
@@ -32,8 +36,13 @@ func (manager *TransactionManager) WithinTransaction(
 
 	petRepository := NewPetRepository(tx)
 	actionRepository := NewPetActionRepository(tx)
+	progressRepository := NewProgressRepository(tx)
 
-	if err := fn(petRepository, actionRepository); err != nil {
+	if err := fn(
+		petRepository,
+		actionRepository,
+		progressRepository,
+	); err != nil {
 		return err
 	}
 

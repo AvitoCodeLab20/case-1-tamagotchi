@@ -18,7 +18,7 @@ import (
 )
 
 type performActionServiceStub struct {
-	action activity.Action
+	result activity.PerformActionResult
 	err    error
 
 	calls      int
@@ -34,11 +34,11 @@ func (stub *performActionServiceStub) ListTypes(
 func (stub *performActionServiceStub) PerformAction(
 	_ context.Context,
 	params activity.PerformActionParams,
-) (activity.Action, error) {
+) (activity.PerformActionResult, error) {
 	stub.calls++
 	stub.lastParams = params
 
-	return stub.action, stub.err
+	return stub.result, stub.err
 }
 
 func TestPerformPetActionHandler(t *testing.T) {
@@ -48,12 +48,19 @@ func TestPerformPetActionHandler(t *testing.T) {
 	createdAt := time.Date(2026, 8, 8, 12, 30, 1, 0, time.UTC)
 
 	service := &performActionServiceStub{
-		action: activity.Action{
-			ID:                42,
-			ActivityCode:      "feed",
-			ExperienceAwarded: 10,
-			OccurredAt:        occurredAt,
-			CreatedAt:         createdAt,
+		result: activity.PerformActionResult{
+			Action: activity.Action{
+				ID:                42,
+				UserID:            userID,
+				ActivityCode:      "feed",
+				ExperienceAwarded: 10,
+				StateDelta: activity.StateDelta{
+					Hunger: 20,
+				},
+				IdempotencyKey: idempotencyKey,
+				OccurredAt:     occurredAt,
+				CreatedAt:      createdAt,
+			},
 		},
 	}
 

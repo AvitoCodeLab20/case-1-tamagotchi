@@ -81,18 +81,27 @@ func (service *Service) validateAction(
 func (service *Service) PerformAction(
 	ctx context.Context,
 	params PerformActionParams,
-) (Action, error) {
+) (PerformActionResult, error) {
 	existingAction, err := service.actionRepository.ByIdempotencyKey(
 		ctx,
 		params.UserID,
 		params.IdempotencyKey,
 	)
 	if err == nil {
-		return existingAction, nil
+		if existingAction.ActivityCode != params.ActivityCode {
+			return PerformActionResult{}, ErrIdempotencyConflict
+		}
+
+		return service.loadActionResult(
+			ctx,
+			existingAction,
+			service.petRepository,
+			service.progressRepository,
+		)
 	}
 
 	if !errors.Is(err, ErrActionNotFound) {
-		return Action{}, err
+		return PerformActionResult{}, err
 	}
 
 	activityType, err := service.typeRepository.ByCode(
@@ -100,23 +109,24 @@ func (service *Service) PerformAction(
 		params.ActivityCode,
 	)
 	if err != nil {
-		return Action{}, err
+		return PerformActionResult{}, err
 	}
 
 	if !activityType.IsActive {
-		return Action{}, ErrActivityInactive
+		return PerformActionResult{}, ErrActivityInactive
 	}
 
 	now := time.Now().UTC()
 	stateDelta := stateDeltaForActivity(params.ActivityCode)
 
-	var result Action
+	var result PerformActionResult
 
 	err = service.transactionManager.WithinTransaction(
 		ctx,
 		func(
 			petRepository PetRepository,
 			actionRepository ActionRepository,
+			progressRepository ProgressRepository,
 		) error {
 			if err := petRepository.LockByUserID(
 				ctx,
@@ -131,8 +141,18 @@ func (service *Service) PerformAction(
 				params.IdempotencyKey,
 			)
 			if err == nil {
-				result = existingAction
-				return nil
+				if existingAction.ActivityCode != params.ActivityCode {
+					return ErrIdempotencyConflict
+				}
+
+				result, err = service.loadActionResult(
+					ctx,
+					existingAction,
+					petRepository,
+					progressRepository,
+				)
+
+				return err
 			}
 
 			if !errors.Is(err, ErrActionNotFound) {
@@ -175,16 +195,80 @@ func (service *Service) PerformAction(
 				OccurredAt:        now,
 			}
 
-			result, err = actionRepository.Create(ctx, action)
+			createdAction, err := actionRepository.Create(ctx, action)
+			if err != nil {
+				return err
+			}
 
-			return err
+			level, err := progressRepository.LevelByNumber(
+				ctx,
+				updatedPet.Level,
+			)
+			if err != nil {
+				return err
+			}
+
+			userStreak, err := progressRepository.AdvanceStreak(
+				ctx,
+				params.UserID,
+				now,
+			)
+			if err != nil {
+				return err
+			}
+
+			result = PerformActionResult{
+				Action:     createdAction,
+				Pet:        updatedPet,
+				Level:      level,
+				UserStreak: userStreak,
+			}
+
+			return nil
 		},
 	)
 	if err != nil {
-		return Action{}, err
+		return PerformActionResult{}, err
 	}
 
 	return result, nil
+}
+func (service *Service) loadActionResult(
+	ctx context.Context,
+	action Action,
+	petRepository PetRepository,
+	progressRepository ProgressRepository,
+) (PerformActionResult, error) {
+	currentPet, err := petRepository.ByUserID(
+		ctx,
+		action.UserID,
+	)
+	if err != nil {
+		return PerformActionResult{}, err
+	}
+
+	level, err := progressRepository.LevelByNumber(
+		ctx,
+		currentPet.Level,
+	)
+	if err != nil {
+		return PerformActionResult{}, err
+	}
+
+	userStreak, err := progressRepository.StreakByUserID(
+		ctx,
+		action.UserID,
+	)
+	if err != nil {
+		return PerformActionResult{}, err
+	}
+
+	return PerformActionResult{
+		Action:     action,
+		Pet:        currentPet,
+		Level:      level,
+		UserStreak: userStreak,
+	}, nil
 }
 
 func stateDeltaForActivity(activityCode string) StateDelta {

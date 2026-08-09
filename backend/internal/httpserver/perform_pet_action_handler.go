@@ -163,7 +163,7 @@ func performPetActionHandler(
 		}
 
 		writeJSON(response, http.StatusOK, performPetActionResponse{
-			PetAction: newPetActionResponse(actionResult),
+			PetAction: newPetActionResponse(actionResult.Action),
 		})
 	}
 }

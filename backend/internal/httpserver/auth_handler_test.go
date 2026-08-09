@@ -86,6 +86,7 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 		Auth:     service,
 		Pet:      petServiceStub{},
 		Activity: &activityServiceStub{},
+		Progress: &progressServiceStub{},
 		Logger:   logger,
 	})
 	if err != nil {

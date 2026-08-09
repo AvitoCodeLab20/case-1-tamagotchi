@@ -5,11 +5,30 @@ import (
 	"time"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 	"github.com/google/uuid"
 )
 
 type Repository interface {
 	ListActive(ctx context.Context) ([]Type, error)
+}
+
+type ProgressRepository interface {
+	LevelByNumber(
+		ctx context.Context,
+		levelNumber int,
+	) (progress.Level, error)
+
+	StreakByUserID(
+		ctx context.Context,
+		userID uuid.UUID,
+	) (progress.UserStreak, error)
+
+	AdvanceStreak(
+		ctx context.Context,
+		userID uuid.UUID,
+		activeAt time.Time,
+	) (progress.UserStreak, error)
 }
 
 type TypeRepository interface {
@@ -62,13 +81,18 @@ type Service struct {
 	typeRepository     TypeRepository
 	actionRepository   ActionRepository
 	petRepository      PetRepository
+	progressRepository ProgressRepository
 	transactionManager TransactionManager
 }
 
 type TransactionManager interface {
 	WithinTransaction(
 		ctx context.Context,
-		fn func(PetRepository, ActionRepository) error,
+		fn func(
+			PetRepository,
+			ActionRepository,
+			ProgressRepository,
+		) error,
 	) error
 }
 
@@ -77,6 +101,7 @@ func NewService(
 	typeRepository TypeRepository,
 	actionRepository ActionRepository,
 	petRepository PetRepository,
+	progressRepository ProgressRepository,
 	transactionManager TransactionManager,
 ) *Service {
 	return &Service{
@@ -84,6 +109,7 @@ func NewService(
 		typeRepository:     typeRepository,
 		actionRepository:   actionRepository,
 		petRepository:      petRepository,
+		progressRepository: progressRepository,
 		transactionManager: transactionManager,
 	}
 }

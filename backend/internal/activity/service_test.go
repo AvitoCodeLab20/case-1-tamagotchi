@@ -31,7 +31,7 @@ func TestServiceListTypes(t *testing.T) {
 		types: want,
 	}
 
-	service := NewService(repository, nil, nil, nil, nil)
+	service := NewService(repository, nil, nil, nil, nil, nil)
 
 	got, err := service.ListTypes(context.Background())
 	if err != nil {
@@ -61,7 +61,7 @@ func TestServiceListTypesRepositoryError(t *testing.T) {
 		err: wantErr,
 	}
 
-	service := NewService(repository, nil, nil, nil, nil)
+	service := NewService(repository, nil, nil, nil, nil, nil)
 
 	_, err := service.ListTypes(context.Background())
 

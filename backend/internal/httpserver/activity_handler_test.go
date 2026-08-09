@@ -16,19 +16,21 @@ import (
 type activityServiceStub struct {
 	types            []activity.Type
 	err              error
-	action           activity.Action
+	actionResult     activity.PerformActionResult
 	performActionErr error
 }
 
-func (stub *activityServiceStub) ListTypes(ctx context.Context) ([]activity.Type, error) {
+func (stub *activityServiceStub) ListTypes(
+	_ context.Context,
+) ([]activity.Type, error) {
 	return stub.types, stub.err
 }
 
 func (stub *activityServiceStub) PerformAction(
 	_ context.Context,
 	_ activity.PerformActionParams,
-) (activity.Action, error) {
-	return stub.action, stub.performActionErr
+) (activity.PerformActionResult, error) {
+	return stub.actionResult, stub.performActionErr
 }
 func TestActivityTypesHandler(t *testing.T) {
 	dailyLimit := 3

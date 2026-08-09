@@ -1,12 +1,18 @@
 package activity
 
 import (
-	"time"
 	"errors"
 	"github.com/google/uuid"
+	"time"
+
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 )
 
-var ErrActionNotFound = errors.New("action not found")
+var (
+	ErrActionNotFound      = errors.New("action not found")
+	ErrIdempotencyConflict = errors.New("idempotency key belongs to another action")
+)
 
 type StateDelta struct {
 	Health    int `json:"health,omitempty"`
@@ -25,4 +31,11 @@ type Action struct {
 	IdempotencyKey    uuid.UUID
 	OccurredAt        time.Time
 	CreatedAt         time.Time
+}
+
+type PerformActionResult struct {
+	Action     Action
+	Pet        pet.Pet
+	Level      progress.Level
+	UserStreak progress.UserStreak
 }
