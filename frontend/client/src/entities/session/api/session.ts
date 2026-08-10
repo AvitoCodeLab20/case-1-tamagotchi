@@ -1,4 +1,9 @@
-import { authApi, type AuthCredentials, type AuthTokens } from './authApi';
+import {
+    authApi,
+    type AuthCredentials,
+    type AuthTokens,
+    type RegisterCredentials,
+} from './authApi';
 import { getRefreshToken, removeRefreshToken, saveRefreshToken } from '../lib/refreshTokenStorage';
 import { useSessionStore } from '../model/sessionStore';
 
@@ -18,7 +23,7 @@ export async function signIn(credentials: AuthCredentials): Promise<void> {
     establishSession(await authApi.signIn(credentials));
 }
 
-export async function signUp(credentials: AuthCredentials): Promise<void> {
+export async function signUp(credentials: RegisterCredentials): Promise<void> {
     establishSession(await authApi.signUp(credentials));
 }
 

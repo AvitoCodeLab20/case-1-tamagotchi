@@ -19,9 +19,11 @@ export function AuthForm(props: AuthFormProps) {
     const handleSubmit = async function (event: SyntheticEvent<HTMLFormElement>) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
+        const displayName = data.get('displayName');
         const email = data.get('email');
         const password = data.get('password');
         const confirmPassword = data.get('confirmPassword');
+        const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
 
         if (typeof email !== 'string' || typeof password !== 'string') {
             return;
@@ -32,12 +34,25 @@ export function AuthForm(props: AuthFormProps) {
             return;
         }
 
+        if (
+            isRegisterMode &&
+            normalizedDisplayName.length < 2
+        ) {
+            setError('Имя игрока должно содержать не менее 2 символов.');
+            return;
+        }
+
+        if (isRegisterMode && password.length < 8) {
+            setError('Пароль должен содержать не менее 8 символов.');
+            return;
+        }
+
         setError(null);
         setIsSubmitting(true);
 
         if (isRegisterMode) {
             try {
-                await signUp({ email, password });
+                await signUp({ email, displayName: normalizedDisplayName, password });
                 navigate(ERoutes.Home, { replace: true });
             } catch {
                 setError('Не удалось выполнить регистрацию. Попробуйте чуть позже.');
@@ -61,6 +76,17 @@ export function AuthForm(props: AuthFormProps) {
 
             {error && <Alert severity="error">{error}</Alert>}
 
+            {isRegisterMode && (
+                <TextField
+                    label="Имя игрока"
+                    name="displayName"
+                    autoComplete="nickname"
+                    required
+                    fullWidth
+                    slotProps={{ htmlInput: { minLength: 2, maxLength: 40 } }}
+                    disabled={isSubmitting}
+                />
+            )}
             <TextField
                 label="Email"
                 name="email"

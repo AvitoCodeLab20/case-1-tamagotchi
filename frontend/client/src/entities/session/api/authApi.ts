@@ -3,6 +3,10 @@ export type AuthCredentials = {
     password: string;
 };
 
+export type RegisterCredentials = AuthCredentials & {
+    displayName: string;
+};
+
 export type AuthTokens = {
     accessToken: string;
     refreshToken: string;
@@ -70,7 +74,8 @@ function getTokens(payload: unknown): AuthTokens {
 }
 
 export const authApi = {
-    signUp: (credentials: AuthCredentials) => request('/auth/register', credentials),
+    signUp: ({ email, displayName, password }: RegisterCredentials) =>
+        request('/auth/register', { email, display_name: displayName, password }),
     signIn: (credentials: AuthCredentials) => request('/auth/login', credentials),
     refresh: (refreshToken: string) => request('/auth/refresh', { refreshToken }),
     logout: (refreshToken: string) => requestWithoutResponse('/auth/logout', { refreshToken }),
