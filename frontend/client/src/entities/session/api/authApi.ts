@@ -27,7 +27,7 @@ export class ApiError extends Error {
     }
 }
 
-const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const apiUrl = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 async function request(path: string, body: unknown): Promise<AuthTokens> {
     const response = await fetch(`${apiUrl}${path}`, {

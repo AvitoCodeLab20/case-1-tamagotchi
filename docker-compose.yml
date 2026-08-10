@@ -78,7 +78,6 @@ services:
         condition: service_completed_successfully
 
   frontend:
-    profiles: ["frontend"]
     build:
       context: ./frontend
     restart: unless-stopped
