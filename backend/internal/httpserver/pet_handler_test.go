@@ -95,7 +95,8 @@ func TestPetHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := petHandler(petService, progressService, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/pet",
 		nil,
@@ -235,7 +236,8 @@ func TestPetHandlerPetNotFound(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := petHandler(petService, progressService, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/pet",
 		nil,

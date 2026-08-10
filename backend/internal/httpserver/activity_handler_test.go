@@ -61,7 +61,8 @@ func TestActivityTypesHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := activityTypesHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/activity-types",
 		nil,
@@ -141,7 +142,8 @@ func TestActivityTypesHandlerServiceError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := activityTypesHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/activity-types",
 		nil,

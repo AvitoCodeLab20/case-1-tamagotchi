@@ -3,11 +3,12 @@ package storage_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 	"github.com/google/uuid"
-	"testing"
-	"time"
 )
 
 func TestPetRepositoryByUserID(t *testing.T) {

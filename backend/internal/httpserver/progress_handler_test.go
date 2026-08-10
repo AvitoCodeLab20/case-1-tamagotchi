@@ -58,7 +58,8 @@ func TestProgressHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := progressHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/progress",
 		nil,
@@ -159,7 +160,8 @@ func TestProgressHandlerNotFound(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := progressHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/progress",
 		nil,
@@ -203,7 +205,8 @@ func TestProgressHandlerServiceError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := progressHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/progress",
 		nil,

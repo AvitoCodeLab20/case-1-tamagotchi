@@ -12,7 +12,6 @@ import (
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
-	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
@@ -73,52 +72,6 @@ func createUser(t *testing.T, pool *pgxpool.Pool) auth.User {
 	})
 
 	return user
-}
-
-func createPet(t *testing.T, pool *pgxpool.Pool, user auth.User) pet.Pet {
-	t.Helper()
-
-	var created pet.Pet
-
-	err := pool.QueryRow(context.Background(), `
-		INSERT INTO pets (user_id, name)
-		VALUES ($1, $2)
-		RETURNING
-			id,
-			user_id,
-			name,
-			species,
-			level,
-			experience,
-			health,
-			hunger,
-			happiness,
-			energy,
-			state_version,
-			last_interaction_at,
-			created_at,
-			updated_at
-	`, user.ID, "Бобик").Scan(
-		&created.ID,
-		&created.UserID,
-		&created.Name,
-		&created.Species,
-		&created.Level,
-		&created.Experience,
-		&created.Health,
-		&created.Hunger,
-		&created.Happiness,
-		&created.Energy,
-		&created.StateVersion,
-		&created.LastInteractionAt,
-		&created.CreatedAt,
-		&created.UpdatedAt,
-	)
-	if err != nil {
-		t.Fatalf("create pet: %v", err)
-	}
-
-	return created
 }
 
 // TestUserRepositoryCreateAndRead also proves that a google/uuid value survives
@@ -597,19 +550,6 @@ func TestRewardRepositorySelectsLeaderboardAward(t *testing.T) {
 	if repeated.ID != selected.ID {
 		t.Fatalf("repeated reward id = %s, want %s", repeated.ID, selected.ID)
 	}
-}
-
-func createPetUUID(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	petID := uuid.Nil
-	if err := pool.QueryRow(
-		context.Background(),
-		`INSERT INTO pets (user_id, name) VALUES ($1, 'Тестовый питомец') RETURNING id`,
-		userID,
-	).Scan(&petID); err != nil {
-		t.Fatalf("create pet: %v", err)
-	}
-	return petID
 }
 
 func insertPetAction(

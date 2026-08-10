@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/jackc/pgx/v5"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"

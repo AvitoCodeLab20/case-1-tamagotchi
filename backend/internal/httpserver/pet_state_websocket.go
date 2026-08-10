@@ -160,7 +160,11 @@ func petStateWebSocketHandler(
 
 			return
 		}
-		defer connection.CloseNow()
+		defer func() {
+			if err := connection.CloseNow(); err != nil {
+				logger.Error("close websocket connection", "error", err)
+			}
+		}()
 		connection.SetReadLimit(webSocketReadLimit)
 
 		ticket := strings.TrimSpace(

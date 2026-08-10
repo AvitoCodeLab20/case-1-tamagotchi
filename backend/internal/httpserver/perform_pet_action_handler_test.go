@@ -110,7 +110,8 @@ func TestPerformPetActionHandler(t *testing.T) {
 	publisher := &petStatePublisherStub{}
 	handler := performPetActionHandler(service, publisher, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"/api/v1/pet/actions",
 		strings.NewReader(`{"activity_code":"feed"}`),
@@ -305,7 +306,8 @@ func TestPerformPetActionHandlerEmptyActivityCode(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"/api/v1/pet/actions",
 		strings.NewReader(`{"activity_code":"   "}`),
@@ -359,7 +361,8 @@ func TestPerformPetActionHandlerInvalidIdempotencyKey(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"/api/v1/pet/actions",
 		strings.NewReader(`{"activity_code":"feed"}`),
@@ -471,7 +474,8 @@ func TestPerformPetActionHandlerDomainErrors(t *testing.T) {
 			publisher := &petStatePublisherStub{}
 			handler := performPetActionHandler(service, publisher, logger)
 
-			request := httptest.NewRequest(
+			request := httptest.NewRequestWithContext(
+				context.Background(),
 				http.MethodPost,
 				"/api/v1/pet/actions",
 				strings.NewReader(`{"activity_code":"feed"}`),
@@ -531,7 +535,8 @@ func TestPerformPetActionHandlerWithoutUserID(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := performPetActionHandler(service, &petStatePublisherStub{}, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"/api/v1/pet/actions",
 		strings.NewReader(`{"activity_code":"feed"}`),
