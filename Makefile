@@ -1,4 +1,4 @@
-.PHONY: up down restart rebuild logs ps test build lint fmt-check migrate migration-status smoke clean help
+.PHONY: up down restart rebuild logs ps test test-integration build lint fmt-check migrate migration-status smoke clean help
 
 # --- Docker ---
 
@@ -34,6 +34,10 @@ smoke: ## Check backend liveness and readiness endpoints
 
 test: ## Run backend tests with race detector
 	cd backend && go test -race ./...
+
+test-integration: ## Run backend tests against the Compose database (requires `make up`)
+	cd backend && TEST_DATABASE_URL="postgres://$${POSTGRES_USER:-postgres}:$${POSTGRES_PASSWORD:-postgres}@localhost:$${POSTGRES_PORT:-5433}/$${POSTGRES_DB:-tamagotchi}?sslmode=disable" \
+		go test -race -count=1 ./...
 
 build: ## Compile backend binaries locally into backend/bin
 	cd backend && go build -o bin/ ./cmd/...

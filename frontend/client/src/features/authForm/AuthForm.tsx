@@ -1,0 +1,132 @@
+import { Alert, Button, Paper, TextField, Typography } from '@mui/material';
+import styles from '@features/authForm/AuthForm.module.scss';
+import type { SyntheticEvent } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { signIn, signUp } from '@entities/session';
+import { ERoutes } from '@entities/paths';
+
+type AuthFormProps = {
+    isRegisterMode: boolean;
+};
+
+export function AuthForm(props: AuthFormProps) {
+    const { isRegisterMode } = props;
+    const navigate = useNavigate();
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async function (event: SyntheticEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const displayName = data.get('displayName');
+        const email = data.get('email');
+        const password = data.get('password');
+        const confirmPassword = data.get('confirmPassword');
+        const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+
+        if (typeof email !== 'string' || typeof password !== 'string') {
+            return;
+        }
+
+        if (isRegisterMode && password !== confirmPassword) {
+            setError('Пароли не совпадают.');
+            return;
+        }
+
+        if (
+            isRegisterMode &&
+            normalizedDisplayName.length < 2
+        ) {
+            setError('Имя игрока должно содержать не менее 2 символов.');
+            return;
+        }
+
+        if (isRegisterMode && password.length < 8) {
+            setError('Пароль должен содержать не менее 8 символов.');
+            return;
+        }
+
+        setError(null);
+        setIsSubmitting(true);
+
+        if (isRegisterMode) {
+            try {
+                await signUp({ email, displayName: normalizedDisplayName, password });
+                navigate(ERoutes.Home, { replace: true });
+            } catch {
+                setError('Не удалось выполнить регистрацию. Попробуйте чуть позже.');
+            }
+        } else {
+            try {
+                await signIn({ email, password });
+                navigate(ERoutes.Home, { replace: true });
+            } catch {
+                setError('Не удалось выполнить вход. Проверьте данные и попробуйте ещё раз.');
+            }
+        }
+        setIsSubmitting(false);
+    };
+
+    return (
+        <Paper className={styles.authForm} component="form" elevation={3} onSubmit={handleSubmit}>
+            <Typography component="h1" variant="h4" align="center">
+                {isRegisterMode ? 'Регистрация' : 'Вход'}
+            </Typography>
+
+            {error && <Alert severity="error">{error}</Alert>}
+
+            {isRegisterMode && (
+                <TextField
+                    label="Имя игрока"
+                    name="displayName"
+                    autoComplete="nickname"
+                    required
+                    fullWidth
+                    slotProps={{ htmlInput: { minLength: 2, maxLength: 40 } }}
+                    disabled={isSubmitting}
+                />
+            )}
+            <TextField
+                label="Email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                fullWidth
+                autoFocus
+                disabled={isSubmitting}
+            />
+            <TextField
+                label="Пароль"
+                name="password"
+                type="password"
+                autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
+                required
+                fullWidth
+                disabled={isSubmitting}
+            />
+            {isRegisterMode && (
+                <TextField
+                    label="Повторите пароль"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    fullWidth
+                    disabled={isSubmitting}
+                />
+            )}
+
+            <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
+                disabled={isSubmitting}
+            >
+                {isRegisterMode ? 'Зарегистрироваться' : 'Войти'}
+            </Button>
+        </Paper>
+    );
+}

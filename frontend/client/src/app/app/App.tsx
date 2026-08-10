@@ -1,11 +1,12 @@
 import { Outlet } from 'react-router-dom';
 import { QueryClientProvider } from '@app/providers/queryClient';
-import { Header } from '@widgets/header';
+import { SessionBootstrap } from '@app/providers/session';
 export function App() {
     return (
-        <QueryClientProvider>
-            <Header />
-            <Outlet />
-        </QueryClientProvider>
+        <SessionBootstrap>
+            <QueryClientProvider>
+                <Outlet />
+            </QueryClientProvider>
+        </SessionBootstrap>
     );
 }

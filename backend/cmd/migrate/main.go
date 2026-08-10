@@ -31,18 +31,18 @@ func run(args []string) error {
 		command = args[0]
 	}
 
-	cfg, err := config.Load()
+	cfg, err := config.LoadDatabase()
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	db, err := sql.Open("pgx", cfg.URL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer func() { _ = db.Close() }()
 
-	pingContext, cancel := context.WithTimeout(context.Background(), cfg.DatabaseConnectTimeout)
+	pingContext, cancel := context.WithTimeout(context.Background(), cfg.ConnectTimeout)
 	defer cancel()
 
 	if err = db.PingContext(pingContext); err != nil {

@@ -1,17 +1,19 @@
-import styles from './Navigation.module.scss';
-import { Link, NavLink } from 'react-router-dom';
+import styles from './LoginNavigation.module.scss';
+import { Link } from 'react-router-dom';
+import { ERoutes } from '@entities/paths';
 import { Button } from '@mui/material';
+import { logout, useSessionStore } from '@entities/session';
 
-export function Navigation() {
-    const isRegistered = true;
-
+export function LoginNavigation() {
+    const isRegistered = useSessionStore((state) => state.status === 'authenticated');
+    console.log(isRegistered);
     return (
         <nav className={styles.nav}>
             {!isRegistered ? (
                 <>
                     <Button
                         component={Link}
-                        to="/auth?mode=login"
+                        to={`${ERoutes.Auth}?mode=login`}
                         variant="contained"
                         color="primary"
                     >
@@ -21,23 +23,16 @@ export function Navigation() {
                         variant="contained"
                         color="secondary"
                         component={Link}
-                        to={'auth?mode=register'}
+                        to={`${ERoutes.Auth}?mode=register`}
                     >
                         Зарегистрироваться
                     </Button>
                 </>
             ) : (
                 <>
-                    <NavLink to="/leaderboard">
-                        <Button variant="contained" color="primary">
-                            Лидерборд
-                        </Button>
-                    </NavLink>
-                    <NavLink to="/">
-                        <Button variant="contained" color="secondary">
-                            Питомец
-                        </Button>
-                    </NavLink>
+                    <Button variant="contained" onClick={() => void logout()}>
+                        Выйти
+                    </Button>
                 </>
             )}
         </nav>

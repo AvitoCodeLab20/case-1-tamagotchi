@@ -3,8 +3,6 @@ package httpserver
 import (
 	"context"
 	"errors"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,11 +18,9 @@ func (stub readinessStub) Ping(context.Context) error {
 }
 
 func TestHealth(t *testing.T) {
-	server := New(":0", readinessStub{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
-	response := httptest.NewRecorder()
+	suite := newSuite(t)
 
-	server.Handler.ServeHTTP(response, request)
+	response := suite.request(t, http.MethodGet, "/healthz", nil, "")
 
 	if response.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", response.Code, http.StatusOK)
@@ -35,13 +31,41 @@ func TestHealth(t *testing.T) {
 }
 
 func TestReadinessUnavailable(t *testing.T) {
-	server := New(":0", readinessStub{err: errors.New("database unavailable")}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
-	response := httptest.NewRecorder()
+	suite := newSuite(t, withDatabaseError(errors.New("database unavailable")))
 
-	server.Handler.ServeHTTP(response, request)
+	response := suite.request(t, http.MethodGet, "/readyz", nil, "")
 
 	if response.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want %d", response.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestNewRequiresDependencies(t *testing.T) {
+	if _, err := New(Options{Address: ":0"}); err == nil {
+		t.Error("New() error = nil, want a missing dependency error")
+	}
+}
+
+// TestUnknownRouteIsNotFound guards against a router change silently exposing
+// an endpoint under a wildcard pattern.
+func TestUnknownRouteIsNotFound(t *testing.T) {
+	suite := newSuite(t)
+
+	response := suite.request(t, http.MethodGet, "/api/v1/auth/nonexistent", nil, "")
+
+	if response.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
+func TestAuthRoutesRejectWrongMethod(t *testing.T) {
+	suite := newSuite(t)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/auth/login", nil)
+	suite.handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want %d", response.Code, http.StatusMethodNotAllowed)
 	}
 }

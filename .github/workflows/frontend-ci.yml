@@ -1,17 +1,17 @@
 name: Frontend CI
 on:
   push:
-    branches: [main, dev, frontend-dev]
+    branches: [ main, dev, frontend-dev ]
     paths:
       - "frontend/**"
       - "docker-compose.yml"
-      - ".github/wokflows/frontend-ci.yml"
+      - ".github/wokflows/frontend-ci.yaml"
   pull_request:
     branches: [ main, dev, frontend-dev ]
     paths:
       - "frontend/**"
       - "docker-compose.yml"
-      - ".github/wokflows/frontend-ci.yml"
+      - ".github/wokflows/frontend-ci.yaml"
 
 permissions:
   contents: read

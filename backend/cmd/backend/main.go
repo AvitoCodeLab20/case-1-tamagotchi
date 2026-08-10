@@ -8,11 +8,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
 
 func main() {
@@ -35,14 +46,73 @@ func run(logger *logging.Logger) error {
 	rootContext, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	databasePool, err := database.Open(rootContext, cfg.DatabaseURL, cfg.DatabaseConnectTimeout)
+	databasePool, err := database.Open(rootContext, cfg.Database.URL, cfg.Database.ConnectTimeout)
 	if err != nil {
 		return fmt.Errorf("connect to database: %w", err)
 	}
 	defer databasePool.Close()
 
-	server := httpserver.New(cfg.HTTPAddress, databasePool, logger)
+	authService, err := newAuthService(cfg.Auth, databasePool, logger)
+	if err != nil {
+		return fmt.Errorf("build auth service: %w", err)
+	}
+	petRepository := storage.NewPetRepository(databasePool)
+	petService := pet.NewService(petRepository)
+
+	progressRepository := storage.NewProgressRepository(databasePool)
+	progressService := progress.NewService(progressRepository)
+
+	activityRepository := storage.NewActivityRepository(databasePool)
+	petActionRepository := storage.NewPetActionRepository(databasePool)
+	transactionManager := storage.NewTransactionManager(databasePool)
+	dailySummaryRepository := storage.NewDailySummaryRepository(databasePool)
+	dailySummaryService := dailysummary.NewService(dailySummaryRepository)
+
+	activityService := activity.NewService(
+		activityRepository,
+		activityRepository,
+		petActionRepository,
+		petRepository,
+		progressRepository,
+		transactionManager,
+	)
+	leaderboardRepository := storage.NewLeaderboardRepository(databasePool)
+	leaderboardService, err := leaderboard.NewService(leaderboardRepository)
+	if err != nil {
+		return fmt.Errorf("build leaderboard service: %w", err)
+	}
+	leaderboardFinalizer, err := leaderboard.NewFinalizer(leaderboardRepository)
+	if err != nil {
+		return fmt.Errorf("build leaderboard finalizer: %w", err)
+	}
+	rewardService, err := rewards.NewService(storage.NewRewardRepository(databasePool))
+	if err != nil {
+		return fmt.Errorf("build reward service: %w", err)
+	}
+
+	server, err := httpserver.New(httpserver.Options{
+		Address:  cfg.HTTPAddress,
+		Database: databasePool,
+		Auth:     authService,
+		Pet:      petService,
+		Activity: activityService,
+		Progress: progressService,
+		WebSocketOrigins: []string{
+			"localhost:5173",
+			"localhost:3000",
+			"127.0.0.1:5173",
+		},
+		Leaderboard: leaderboardService,
+		Rewards:     rewardService,
+		Summary:     dailySummaryService,
+		Logger:      logger,
+	})
+	if err != nil {
+		return fmt.Errorf("build HTTP server: %w", err)
+	}
+
 	serverErrors := make(chan error, 1)
+	go runLeaderboardFinalizer(rootContext, logger, leaderboardFinalizer)
 
 	go func() {
 		logger.Info("http server started", "address", cfg.HTTPAddress)
@@ -66,4 +136,53 @@ func run(logger *logging.Logger) error {
 	}
 
 	return nil
+}
+
+func newAuthService(cfg config.AuthConfig, pool *pgxpool.Pool, logger *logging.Logger) (*auth.Service, error) {
+	tokenIssuer, err := auth.NewTokenIssuer(cfg.JWTSecret, cfg.JWTIssuer, cfg.AccessTokenTTL)
+	if err != nil {
+		return nil, fmt.Errorf("build token issuer: %w", err)
+	}
+
+	passwordHasher, err := auth.NewPasswordHasher(cfg.BcryptCost)
+	if err != nil {
+		return nil, fmt.Errorf("build password hasher: %w", err)
+	}
+
+	service, err := auth.NewService(
+		storage.NewUserRepository(pool),
+		storage.NewRefreshSessionRepository(pool),
+		tokenIssuer,
+		passwordHasher,
+		cfg.RefreshTokenTTL,
+		logger,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("build auth service: %w", err)
+	}
+
+	return service, nil
+}
+
+func runLeaderboardFinalizer(
+	ctx context.Context,
+	logger *logging.Logger,
+	finalizer *leaderboard.Finalizer,
+) {
+	finalize := func() {
+		if err := finalizer.FinalizePreviousWeek(ctx, time.Now()); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error("leaderboard finalization failed", "error", err)
+		}
+	}
+	finalize()
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			finalize()
+		}
+	}
 }
