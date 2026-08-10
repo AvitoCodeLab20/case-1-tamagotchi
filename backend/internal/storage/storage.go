@@ -22,6 +22,19 @@ type Querier interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
+type RowsQuerier interface {
+	Query(
+		ctx context.Context,
+		sql string,
+		args ...any,
+	) (pgx.Rows, error)
+}
+
+type ActivityQuerier interface {
+	RowsQuerier
+	Querier
+}
+
 // isUniqueViolation reports whether the error is a unique index conflict on the
 // named constraint or index. An empty name matches any of them.
 func isUniqueViolation(err error, constraint string) bool {

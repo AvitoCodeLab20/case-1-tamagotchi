@@ -12,6 +12,7 @@ import (
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
@@ -72,6 +73,52 @@ func createUser(t *testing.T, pool *pgxpool.Pool) auth.User {
 	})
 
 	return user
+}
+
+func createPet(t *testing.T, pool *pgxpool.Pool, user auth.User) pet.Pet {
+	t.Helper()
+
+	var created pet.Pet
+
+	err := pool.QueryRow(context.Background(), `
+		INSERT INTO pets (user_id, name)
+		VALUES ($1, $2)
+		RETURNING
+			id,
+			user_id,
+			name,
+			species,
+			level,
+			experience,
+			health,
+			hunger,
+			happiness,
+			energy,
+			state_version,
+			last_interaction_at,
+			created_at,
+			updated_at
+	`, user.ID, "Бобик").Scan(
+		&created.ID,
+		&created.UserID,
+		&created.Name,
+		&created.Species,
+		&created.Level,
+		&created.Experience,
+		&created.Health,
+		&created.Hunger,
+		&created.Happiness,
+		&created.Energy,
+		&created.StateVersion,
+		&created.LastInteractionAt,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		t.Fatalf("create pet: %v", err)
+	}
+
+	return created
 }
 
 // TestUserRepositoryCreateAndRead also proves that a google/uuid value survives
@@ -300,26 +347,68 @@ func TestRefreshSessionRepositoryMissingRow(t *testing.T) {
 func TestLeaderboardRepositoryAggregatesWeeklyExperience(t *testing.T) {
 	pool := newPool(t)
 	repository := storage.NewLeaderboardRepository(pool)
+
 	activeUser := createUser(t, pool)
 	blockedUser := createUser(t, pool)
-	if _, err := pool.Exec(context.Background(), `UPDATE users SET status = 'blocked' WHERE id = $1`, blockedUser.ID); err != nil {
+
+	if _, err := pool.Exec(
+		context.Background(),
+		`UPDATE users SET status = 'blocked' WHERE id = $1`,
+		blockedUser.ID,
+	); err != nil {
 		t.Fatalf("block user: %v", err)
 	}
+
 	startsAt := time.Date(2026, time.August, 3, 0, 0, 0, 0, time.UTC)
 	endsAt := startsAt.AddDate(0, 0, 7)
-	activePetID := createPet(t, pool, activeUser.ID)
-	blockedPetID := createPet(t, pool, blockedUser.ID)
+
+	activePetID := getPetIDByUserID(t, pool, activeUser.ID)
+	blockedPetID := getPetIDByUserID(t, pool, blockedUser.ID)
+
 	insertPetAction(t, pool, activeUser.ID, activePetID, 20, startsAt.Add(time.Hour))
 	insertPetAction(t, pool, activeUser.ID, activePetID, 30, startsAt.Add(2*time.Hour))
+
+	// Действие не входит в недельный интервал.
 	insertPetAction(t, pool, activeUser.ID, activePetID, 100, startsAt.Add(-time.Second))
+
+	// Заблокированный пользователь не должен попасть в рейтинг.
 	insertPetAction(t, pool, blockedUser.ID, blockedPetID, 500, startsAt.Add(time.Hour))
-	participants, err := repository.WeeklyParticipants(context.Background(), startsAt, endsAt)
+
+	participants, err := repository.WeeklyParticipants(
+		context.Background(),
+		startsAt,
+		endsAt,
+	)
 	if err != nil {
 		t.Fatalf("WeeklyParticipants() error = %v", err)
 	}
-	if len(participants) != 1 || participants[0].UserID != activeUser.ID || participants[0].WeeklyExperience != 50 {
+
+	if len(participants) != 1 ||
+		participants[0].UserID != activeUser.ID ||
+		participants[0].WeeklyExperience != 50 {
 		t.Fatalf("participants = %+v, want active user with 50 XP", participants)
 	}
+}
+
+func getPetIDByUserID(
+	t *testing.T,
+	pool *pgxpool.Pool,
+	userID uuid.UUID,
+) uuid.UUID {
+	t.Helper()
+
+	var petID uuid.UUID
+
+	err := pool.QueryRow(
+		context.Background(),
+		`SELECT id FROM pets WHERE user_id = $1`,
+		userID,
+	).Scan(&petID)
+	if err != nil {
+		t.Fatalf("get automatically created pet: %v", err)
+	}
+
+	return petID
 }
 
 func TestLeaderboardRepositoryFinalizesWeekIdempotently(t *testing.T) {
@@ -510,7 +599,7 @@ func TestRewardRepositorySelectsLeaderboardAward(t *testing.T) {
 	}
 }
 
-func createPet(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) uuid.UUID {
+func createPetUUID(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	petID := uuid.Nil
 	if err := pool.QueryRow(

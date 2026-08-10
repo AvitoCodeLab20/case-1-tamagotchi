@@ -1,4 +1,12 @@
 -- +goose Up
+
+ALTER TABLE reward_definitions
+    DROP CONSTRAINT reward_definitions_trigger_type_check;
+
+ALTER TABLE reward_definitions
+    ADD CONSTRAINT reward_definitions_trigger_type_check
+    CHECK (trigger_type IN ('level', 'streak', 'achievement', 'leaderboard'));
+
 INSERT INTO reward_definitions (
     code,
     title,

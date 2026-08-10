@@ -79,9 +79,13 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 		Address:     ":0",
 		Database:    readinessStub{err: cfg.databaseErr},
 		Auth:        service,
+		Pet:         &petServiceStub{},
+		Summary:     &dailySummaryHandlerServiceStub{},
+		Activity:    &activityServiceStub{},
+		Progress:    &progressServiceStub{},
+		Logger:      logger,
 		Leaderboard: cfg.leaderboard,
 		Rewards:     cfg.rewards,
-		Logger:      logger,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

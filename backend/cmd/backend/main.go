@@ -12,12 +12,16 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/auth"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/config"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/dailysummary"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/database"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/httpserver"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/leaderboard"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/logging"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
+	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/rewards"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/storage"
 )
@@ -52,7 +56,26 @@ func run(logger *logging.Logger) error {
 	if err != nil {
 		return fmt.Errorf("build auth service: %w", err)
 	}
+	petRepository := storage.NewPetRepository(databasePool)
+	petService := pet.NewService(petRepository)
 
+	progressRepository := storage.NewProgressRepository(databasePool)
+	progressService := progress.NewService(progressRepository)
+
+	activityRepository := storage.NewActivityRepository(databasePool)
+	petActionRepository := storage.NewPetActionRepository(databasePool)
+	transactionManager := storage.NewTransactionManager(databasePool)
+	dailySummaryRepository := storage.NewDailySummaryRepository(databasePool)
+	dailySummaryService := dailysummary.NewService(dailySummaryRepository)
+
+	activityService := activity.NewService(
+		activityRepository,
+		activityRepository,
+		petActionRepository,
+		petRepository,
+		progressRepository,
+		transactionManager,
+	)
 	leaderboardRepository := storage.NewLeaderboardRepository(databasePool)
 	leaderboardService, err := leaderboard.NewService(leaderboardRepository)
 	if err != nil {
@@ -68,11 +91,19 @@ func run(logger *logging.Logger) error {
 	}
 
 	server, err := httpserver.New(httpserver.Options{
-		Address:     cfg.HTTPAddress,
-		Database:    databasePool,
-		Auth:        authService,
+		Address:  cfg.HTTPAddress,
+		Database: databasePool,
+		Auth:     authService,
+		Pet:      petService,
+		Activity: activityService,
+		Progress: progressService,
+		WebSocketOrigins: []string{
+			"localhost:5173",
+			"127.0.0.1:5173",
+		},
 		Leaderboard: leaderboardService,
 		Rewards:     rewardService,
+		Summary:     dailySummaryService,
 		Logger:      logger,
 	})
 	if err != nil {
