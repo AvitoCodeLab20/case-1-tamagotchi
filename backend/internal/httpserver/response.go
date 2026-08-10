@@ -28,6 +28,8 @@ const (
 	codeInternalError      = "internal_error"
 	codePetNotFound        = "pet_not_found"
 	codeNotFound           = "not_found"
+	codeRewardNotAvailable = "reward_not_available"
+	codeSelectionExpired   = "selection_expired"
 )
 
 // errorResponse is the single error shape of the API.

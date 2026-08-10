@@ -1,0 +1,548 @@
+openapi: 3.1.0
+info:
+  title: Avito Tamagotchi Pet API
+  version: 0.1.0
+  description: |
+    Contract for the pet, activity, progress, streak and daily summary scope.
+    Authentication uses the Bearer access token defined by the authentication module.
+    The authenticated user is resolved from the token and is never accepted in a request body.
+servers:
+  - url: http://localhost:8080
+    description: Local backend
+tags:
+  - name: Pet
+    description: Current state of the authenticated user's pet.
+  - name: Activities
+    description: Activity catalog and pet actions.
+  - name: Progress
+    description: Level, experience and daily activity streak.
+  - name: Daily summaries
+    description: Daily changes in pet state and progress.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/pet:
+    get:
+      tags: [Pet]
+      operationId: getPet
+      summary: Get the current user's pet
+      responses:
+        "200":
+          description: Pet state, current level, streak and activity catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/activity-types:
+    get:
+      tags: [Activities]
+      operationId: listActivityTypes
+      summary: List active activity types
+      responses:
+        "200":
+          description: Active activity types
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [activity_types]
+                properties:
+                  activity_types:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityType"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/pet/actions:
+    post:
+      tags: [Activities]
+      operationId: performPetAction
+      summary: Perform an action with the current user's pet
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerformPetActionRequest"
+      responses:
+        "200":
+          description: Action result and updated pet state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformPetActionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/progress:
+    get:
+      tags: [Progress]
+      operationId: getProgress
+      summary: Get the current user's level, experience and streak
+      responses:
+        "200":
+          description: Current progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/daily-summaries/current:
+    get:
+      tags: [Daily summaries]
+      operationId: getCurrentDailySummary
+      summary: Get the current user's summary for today
+      responses:
+        "200":
+          description: Current daily summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailySummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/daily-summaries/{summary_date}:
+    get:
+      tags: [Daily summaries]
+      operationId: getDailySummary
+      summary: Get the current user's summary for a date
+      parameters:
+        - name: summary_date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Daily summary for the requested date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID generated once by the client and reused only to retry this action
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid JSON or request field
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing, invalid or expired access token
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: The resource does not exist or does not belong to the current user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: The action is unavailable because of its cooldown, daily limit or pet state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    PetResponse:
+      type: object
+      additionalProperties: false
+      required: [pet, level, user_streak]
+      properties:
+        pet:
+          $ref: "#/components/schemas/Pet"
+        level:
+          $ref: "#/components/schemas/Level"
+        user_streak:
+          $ref: "#/components/schemas/UserStreak"
+
+    Pet:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - species
+        - level
+        - experience
+        - health
+        - hunger
+        - happiness
+        - energy
+        - state_version
+        - last_interaction_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+        species:
+          type: string
+          example: avito_pet
+        level:
+          type: integer
+          minimum: 1
+        experience:
+          type: integer
+          format: int64
+          minimum: 0
+        health:
+          type: integer
+          minimum: 0
+          maximum: 100
+        hunger:
+          type: integer
+          minimum: 0
+          maximum: 100
+        happiness:
+          type: integer
+          minimum: 0
+          maximum: 100
+        energy:
+          type: integer
+          minimum: 0
+          maximum: 100
+        state_version:
+          type: integer
+          format: int64
+          minimum: 1
+        last_interaction_at:
+          type: [string, "null"]
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Level:
+      type: object
+      additionalProperties: false
+      required: [level, required_total_experience, title, created_at]
+      properties:
+        level:
+          type: integer
+          minimum: 1
+        required_total_experience:
+          type: integer
+          format: int64
+          minimum: 0
+        title:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ActivityType:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - title
+        - description
+        - category
+        - base_experience
+        - daily_limit
+        - cooldown_seconds
+      properties:
+        code:
+          type: string
+          minLength: 1
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [care, avito_product]
+        base_experience:
+          type: integer
+          minimum: 1
+        daily_limit:
+          type: [integer, "null"]
+          minimum: 1
+        cooldown_seconds:
+          type: integer
+          minimum: 0
+
+    PerformPetActionRequest:
+      type: object
+      additionalProperties: false
+      required: [activity_code]
+      properties:
+        activity_code:
+          type: string
+          minLength: 1
+
+    PerformPetActionResponse:
+      type: object
+      additionalProperties: false
+      required: [pet_action, pet, level, user_streak]
+      properties:
+        pet_action:
+          $ref: "#/components/schemas/PetAction"
+        pet:
+          $ref: "#/components/schemas/Pet"
+        level:
+          $ref: "#/components/schemas/Level"
+        user_streak:
+          $ref: "#/components/schemas/UserStreak"
+
+    PetAction:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - activity_code
+        - experience_awarded
+        - state_delta
+        - occurred_at
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        activity_code:
+          type: string
+        experience_awarded:
+          type: integer
+          minimum: 0
+        state_delta:
+          $ref: "#/components/schemas/PetStateDelta"
+        occurred_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    PetStateDelta:
+      type: object
+      additionalProperties: false
+      properties:
+        health:
+          type: integer
+          minimum: -100
+          maximum: 100
+        hunger:
+          type: integer
+          minimum: -100
+          maximum: 100
+        happiness:
+          type: integer
+          minimum: -100
+          maximum: 100
+        energy:
+          type: integer
+          minimum: -100
+          maximum: 100
+
+    UserStreak:
+      type: object
+      additionalProperties: false
+      required: [current_days, longest_days, last_active_date, updated_at]
+      properties:
+        current_days:
+          type: integer
+          minimum: 0
+        longest_days:
+          type: integer
+          minimum: 0
+        last_active_date:
+          type: [string, "null"]
+          format: date
+        updated_at:
+          type: string
+          format: date-time
+
+    ProgressResponse:
+      type: object
+      additionalProperties: false
+      required: [level, experience, required_total_experience, title, user_streak]
+      properties:
+        level:
+          type: integer
+          minimum: 1
+        experience:
+          type: integer
+          format: int64
+          minimum: 0
+        required_total_experience:
+          type: integer
+          format: int64
+          minimum: 0
+        title:
+          type: string
+        user_streak:
+          $ref: "#/components/schemas/UserStreak"
+
+    DailySummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - summary_date
+        - action_count
+        - experience_earned
+        - levels_gained
+        - state_before
+        - state_after
+        - generated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        summary_date:
+          type: string
+          format: date
+        action_count:
+          type: integer
+          minimum: 0
+        experience_earned:
+          type: integer
+          minimum: 0
+        levels_gained:
+          type: integer
+          minimum: 0
+        state_before:
+          $ref: "#/components/schemas/PetState"
+        state_after:
+          $ref: "#/components/schemas/PetState"
+        generated_at:
+          type: string
+          format: date-time
+
+    PetState:
+      type: object
+      additionalProperties: false
+      properties:
+        level:
+          type: integer
+          minimum: 1
+        experience:
+          type: integer
+          format: int64
+          minimum: 0
+        health:
+          type: integer
+          minimum: 0
+          maximum: 100
+        hunger:
+          type: integer
+          minimum: 0
+          maximum: 100
+        happiness:
+          type: integer
+          minimum: 0
+          maximum: 100
+        energy:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - bad_request
+                - validation_failed
+                - unauthorized
+                - not_found
+                - invalid_activity_code
+                - activity_not_active
+                - cooldown_active
+                - daily_limit_reached
+                - idempotency_conflict
+                - internal_error
+            message:
+              type: string
+            field:
+              type: string

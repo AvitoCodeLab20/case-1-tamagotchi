@@ -28,6 +28,8 @@ type Options struct {
 	Address          string
 	Database         readinessChecker
 	Auth             authService
+	Leaderboard leaderboardService
+	Rewards     rewardService
 	Pet              petService
 	Activity         activityService
 	Progress         progressService
@@ -49,6 +51,10 @@ func New(options Options) (*http.Server, error) {
 		return nil, errors.New("httpserver: activity service is required")
 	case options.Summary == nil:
 		return nil, errors.New("httpserver: daily summary service is required")
+	case options.Leaderboard == nil:
+		return nil, errors.New("httpserver: leaderboard service is required")
+	case options.Rewards == nil:
+		return nil, errors.New("httpserver: reward service is required")
 	case options.Logger == nil:
 		return nil, errors.New("httpserver: logger is required")
 	case options.Progress == nil:
@@ -110,6 +116,22 @@ func newRouter(
 		stateHub,
 		options.WebSocketOrigins,
 		options.Logger,
+	))
+	mux.Handle("GET /api/v1/leaderboard/current", chain(
+		currentLeaderboardHandler(options.Auth, options.Leaderboard, options.Logger),
+		authenticated,
+	))
+	mux.Handle("GET /api/v1/rewards", chain(
+		listRewardsHandler(options.Auth, options.Rewards, options.Logger),
+		authenticated,
+	))
+	mux.Handle("POST /api/v1/rewards/{reward_id}/redeem", chain(
+		redeemRewardHandler(options.Auth, options.Rewards, options.Logger),
+		authenticated,
+	))
+	mux.Handle("POST /api/v1/leaderboard/awards/{award_id}/select", chain(
+		selectLeaderboardAwardHandler(options.Auth, options.Rewards, options.Logger),
+		authenticated,
 	))
 
 	return mux

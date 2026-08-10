@@ -1,0 +1,26 @@
+.authPage {
+  position: relative;
+  flex: 1;
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  .modeButton {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .authPage {
+    align-items: flex-start;
+    padding: 88px 16px 16px;
+    .modeButton {
+      top: 16px;
+      right: 16px;
+    }
+  }
+}

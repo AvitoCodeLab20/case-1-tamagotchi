@@ -1,5 +1,11 @@
 import styles from './LeaderboardPage.module.scss';
+import { Header } from '@widgets/header';
 
 export function LeaderboardPage() {
-    return <div className={styles.LeaderboardPage}>LeaderboardPage</div>;
+    return (
+        <>
+            <Header />
+            <main className={styles.LeaderboardPage}>LeaderboardPage</main>
+        </>
+    );
 }

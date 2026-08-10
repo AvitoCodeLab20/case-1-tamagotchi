@@ -2,7 +2,8 @@ import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { App } from '@app/app';
-import { ERoutes } from '@app/providers/router/path.ts';
+import { ERoutes } from '@entities/paths/path.ts';
+import { GuestOnlyRoute } from './GuestOnlyRoute';
 
 const HomePage = lazy(() =>
     import('@pages/homePage').then(({ HomePage }) => ({ default: HomePage }))
@@ -31,7 +32,13 @@ export const routes: RouteObject[] = [
             },
             {
                 path: ERoutes.Auth,
-                element: <AuthPage />,
+                element: <GuestOnlyRoute />,
+                children: [
+                    {
+                        index: true,
+                        element: <AuthPage />,
+                    },
+                ],
             },
         ],
     },
