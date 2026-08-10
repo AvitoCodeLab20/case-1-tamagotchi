@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"time"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/activity"
 )

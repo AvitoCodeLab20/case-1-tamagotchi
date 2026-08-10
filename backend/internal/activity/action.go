@@ -2,8 +2,9 @@ package activity
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/pet"
 	"github.com/AvitoCodeLab20/case-1-tamagotchi/backend/internal/progress"

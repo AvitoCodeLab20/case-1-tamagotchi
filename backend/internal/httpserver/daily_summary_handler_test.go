@@ -103,7 +103,8 @@ func TestCurrentDailySummaryHandler(t *testing.T) {
 
 	handler := currentDailySummaryHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/daily-summaries/current",
 		nil,
@@ -217,7 +218,8 @@ func TestCurrentDailySummaryHandlerNotFound(t *testing.T) {
 
 	handler := currentDailySummaryHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/daily-summaries/current",
 		nil,
@@ -269,7 +271,8 @@ func TestCurrentDailySummaryHandlerInternalError(t *testing.T) {
 
 	handler := currentDailySummaryHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/daily-summaries/current",
 		nil,
@@ -319,7 +322,8 @@ func TestCurrentDailySummaryHandlerWithoutUserID(t *testing.T) {
 
 	handler := currentDailySummaryHandler(service, logger)
 
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/daily-summaries/current",
 		nil,
@@ -377,7 +381,8 @@ func TestDailySummaryByDateHandler(t *testing.T) {
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := dailySummaryByDateHandler(service, logger)
-	request := httptest.NewRequest(
+	request := httptest.NewRequestWithContext(
+		context.Background(),
 		http.MethodGet,
 		"/api/v1/daily-summaries/2026-08-08",
 		nil,

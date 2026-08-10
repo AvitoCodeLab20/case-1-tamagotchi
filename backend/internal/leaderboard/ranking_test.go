@@ -105,8 +105,13 @@ func TestRankDoesNotMutateInput(t *testing.T) {
 	}
 
 	_ = Rank(participants)
-	if participants[0].WeeklyExperience != 10 || participants[1].WeeklyExperience != 20 {
-		t.Fatal("Rank() mutated its input")
+	if len(participants) != 2 {
+		t.Fatalf("len(participants) = %d, want 2", len(participants))
+	}
+
+	if participants[0].WeeklyExperience != 10 ||
+		participants[1].WeeklyExperience != 20 {
+		t.Fatalf("participants = %+v, want experience 10 and 20", participants)
 	}
 }
 
