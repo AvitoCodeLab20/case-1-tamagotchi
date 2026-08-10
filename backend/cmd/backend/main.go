@@ -99,6 +99,7 @@ func run(logger *logging.Logger) error {
 		Progress: progressService,
 		WebSocketOrigins: []string{
 			"localhost:5173",
+			"localhost:3000",
 			"127.0.0.1:5173",
 		},
 		Leaderboard: leaderboardService,
