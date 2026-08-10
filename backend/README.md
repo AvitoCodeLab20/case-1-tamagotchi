@@ -1,6 +1,6 @@
 # Backend
 
-Go-сервис Avito Tamagotchi. На текущем этапе он поднимает HTTP-сервер, подключается к PostgreSQL, предоставляет probes для оркестратора и реализует аутентификацию по email и паролю. Игровое API добавляется следующими feature-ветками.
+Go-сервис Avito Tamagotchi. Backend поднимает HTTP-сервер, подключается к PostgreSQL, предоставляет probes для оркестратора, реализует аутентификацию, игровое API и обновление состояния питомца в реальном времени через WebSocket.
 
 ## Локальный запуск
 
@@ -44,6 +44,7 @@ make smoke
 | `REFRESH_TOKEN_TTL` | `720h` | Время жизни refresh-токена. |
 | `BCRYPT_COST` | `12` | Стоимость bcrypt, допустимо 10–15. |
 
+
 Production-секреты не должны храниться в `.env` репозитория. Они передаются платформой деплоя через secret storage.
 
 ## API
@@ -56,6 +57,8 @@ Production-секреты не должны храниться в `.env` реп�
 | `POST` | `/api/v1/auth/logout` | — | Отозвать предъявленный refresh-токен. |
 | `POST` | `/api/v1/auth/logout-all` | Bearer | Отозвать все сессии пользователя. |
 | `GET` | `/api/v1/auth/me` | Bearer | Профиль текущего пользователя. |
+| `POST` | `/api/v1/ws-ticket` | Bearer | Получить одноразовый ticket для подключения по WebSocket. |
+| `GET` | `/api/v1/ws/pet?ticket=<ticket>` | WS ticket | Подключиться к обновлениям состояния питомца. |
 
 Быстрая проверка на поднятом стенде:
 
@@ -66,6 +69,53 @@ curl -sS -X POST http://localhost:8080/api/v1/auth/register \
 ```
 
 Схема токенов, коды ошибок и правила валидации описаны в [docs/authentication.md](docs/authentication.md).
+
+## WebSocket
+
+WebSocket используется для отправки актуального состояния питомца клиенту в реальном времени.
+
+Сначала клиент получает одноразовый ticket:
+
+```http
+POST /api/v1/ws-ticket
+Authorization: Bearer <access_token>
+```
+
+Пример ответа:
+
+```json
+{
+  "ticket": "q3dfMPCJwFqGE6Hvo7bhmUeVa9wfVkZMddHQ-1M4dQQ",
+  "expires_at": "2026-08-10T10:00:30Z"
+}
+```
+
+Ticket действует 30 секунд, связан с авторизованным пользователем и может быть использован только один раз.
+
+Подключение выполняется по адресу:
+
+```text
+ws://localhost:8080/api/v1/ws/pet?ticket=<ticket>
+```
+
+После подключения backend сразу отправляет текущее состояние питомца. После каждого успешно выполненного действия клиент получает обновлённое состояние:
+
+```json
+{
+  "level": 1,
+  "experience": 10,
+  "health": 100,
+  "hunger": 90,
+  "happiness": 100,
+  "energy": 90,
+  "state_version": 2,
+  "updated_at": "2026-08-10T10:00:15Z"
+}
+```
+
+Состояние передаётся обычным JSON-объектом без дополнительной обёртки `type/data`. При переподключении клиент должен получить новый ticket.
+
+Для локального frontend разрешены WebSocket origins `localhost:5173` и `127.0.0.1:5173`.
 
 ## Команды
 
