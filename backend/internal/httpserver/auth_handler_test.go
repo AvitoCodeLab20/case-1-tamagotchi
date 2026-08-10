@@ -35,7 +35,6 @@ type suite struct {
 	sessions *authtest.SessionRepository
 }
 
-
 type suiteOption func(*suiteConfig)
 
 type suiteConfig struct {
@@ -77,14 +76,14 @@ func newSuite(t *testing.T, options ...suiteOption) suite {
 	}
 
 	server, err := New(Options{
-		Address:  ":0",
-		Database: readinessStub{err: cfg.databaseErr},
-		Auth:     service,
-		Pet:      &petServiceStub{},
-		Summary:  &dailySummaryHandlerServiceStub{},
-		Activity: &activityServiceStub{},
-		Progress: &progressServiceStub{},
-		Logger:   logger,
+		Address:     ":0",
+		Database:    readinessStub{err: cfg.databaseErr},
+		Auth:        service,
+		Pet:         &petServiceStub{},
+		Summary:     &dailySummaryHandlerServiceStub{},
+		Activity:    &activityServiceStub{},
+		Progress:    &progressServiceStub{},
+		Logger:      logger,
 		Leaderboard: cfg.leaderboard,
 		Rewards:     cfg.rewards,
 	})

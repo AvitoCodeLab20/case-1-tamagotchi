@@ -28,8 +28,8 @@ type Options struct {
 	Address          string
 	Database         readinessChecker
 	Auth             authService
-	Leaderboard leaderboardService
-	Rewards     rewardService
+	Leaderboard      leaderboardService
+	Rewards          rewardService
 	Pet              petService
 	Activity         activityService
 	Progress         progressService

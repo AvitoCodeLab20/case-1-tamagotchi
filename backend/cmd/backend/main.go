@@ -103,8 +103,8 @@ func run(logger *logging.Logger) error {
 		},
 		Leaderboard: leaderboardService,
 		Rewards:     rewardService,
-		Summary: dailySummaryService,
-		Logger:  logger,
+		Summary:     dailySummaryService,
+		Logger:      logger,
 	})
 	if err != nil {
 		return fmt.Errorf("build HTTP server: %w", err)

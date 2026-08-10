@@ -311,7 +311,7 @@ func TestDailySummaryRepositoryUpsertAction(t *testing.T) {
 	err = repository.UpsertAction(
 		ctx,
 		dailysummary.UpsertParams{
-			UserID: user.ID,
+			UserID:      user.ID,
 			SummaryDate: summaryDate.Add(18 * time.Hour),
 
 			ExperienceEarned: 20,
